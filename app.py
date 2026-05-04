@@ -57,14 +57,14 @@ st.markdown("""
     .st-green { background-color: #28a745; color: white; border: 1px solid #1e7e34; }
     .log-entry { font-size: 0.85em; color: #888; border-bottom: 1px solid #333; padding: 5px 0; }
     .stat-card { background-color: #262730; padding: 15px; border-radius: 10px; border-top: 3px solid #007bff; }
+    .shame-card { background-color: #4a1a1a; padding: 10px; border-radius: 5px; border: 1px solid #ff4b4b; color: #ff9b9b; font-size: 0.9em; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- FUNCIÓN DE FUEGOS ARTIFICIALES (Idea 5) ---
+# --- FUNCIÓN DE FUEGOS ARTIFICIALES ---
 def lanzar_fuegos(nombre, meta, color_hex):
     is_rainbow = (meta == 100)
     colors = "['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff']" if is_rainbow else f"['{color_hex}']"
-    
     components.html(f"""
         <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
         <script>
@@ -90,9 +90,11 @@ df.columns = [str(c).strip().upper() for c in df.columns]
 nombres_papus = ["BETOSAN", "LUISE", "OSCARINHO", "ROYS"]
 metas_colores = {10: "#cd7f32", 25: "#c0c0c0", 50: "#007bff", 75: "#9b59b6", 90: "#e74c3c", 95: "#ffd700", 100: "RAINBOW"}
 
-# Inicialización de estados
+# --- INICIALIZACIÓN DE ESTADOS ---
 if "log_actividad" not in st.session_state: st.session_state.log_actividad = []
 if "metas_alcanzadas" not in st.session_state: st.session_state.metas_alcanzadas = {p: [] for p in nombres_papus}
+# Idea 7: Contador de racha salada (Muro de la Vergüenza)
+if "racha_salada" not in st.session_state: st.session_state.racha_salada = {p: 0 for p in nombres_papus}
 
 def agregar_al_log(accion):
     st.session_state.log_actividad.insert(0, accion)
@@ -100,18 +102,15 @@ def agregar_al_log(accion):
 
 # --- RANKING DE COLECCIONISTAS ---
 st.title("🏆 Control Albúm Papus")
-
 st.subheader("📊 Power Ranking del Squad")
 rank_data = []
 total_total = len(df)
 
-# Detección de metas y Ranking
 for p in nombres_papus:
     pegadas = len(df[df[p] > 0])
     porcentaje = (pegadas / total_total) * 100
     repetidas = df[df[p] > 1][p].sum() - len(df[df[p] > 1])
     
-    # Lanzar fuegos si cruza meta (Idea 5)
     for m, color in metas_colores.items():
         if porcentaje >= m and m not in st.session_state.metas_alcanzadas[p]:
             lanzar_fuegos(p, m, color if m < 100 else "#ffffff")
@@ -126,16 +125,26 @@ for i, row in enumerate(df_rank.itertuples()):
     with cols_rank[i]:
         st.markdown(f"""<div class="stat-card"><h3 style='margin:0; color:#007bff;'>#{i+1} {row.PAPU}</h3><p style='margin:0; font-size:1.2em;'><b>{row.PROGRESO}</b></p><p style='margin:0; font-size:0.8em; color:#888;'>Pegadas: {row.PEGADAS} | Reps: {row.REPETIDAS}</p></div>""", unsafe_allow_html=True)
 
-# --- SIDEBAR: CHISMÓGRAFO Y LA TRISTE REALIDAD ---
+# --- SIDEBAR: CHISMÓGRAFO, TRISTE REALIDAD Y MURO DE LA VERGÜENZA ---
 with st.sidebar:
     st.header("🕵️ Bitácora de Evidencias")
     if not st.session_state.log_actividad:
         st.write("Nadie le ha movido pa🕴🏼")
     for log in st.session_state.log_actividad:
-        # Idea 7: Resaltar metas en el log
         color = "#ffd700" if "NIVEL" in log else "#888"
         st.markdown(f"<div class='log-entry' style='color:{color};'>• {log}</div>", unsafe_allow_html=True)
     
+    st.divider()
+    # Idea 7: Muro de la Vergüenza
+    st.header("💀 Muro de la Vergüenza")
+    alguien_salado = False
+    for p, racha in st.session_state.racha_salada.items():
+        if racha >= 2:
+            alguien_salado = True
+            st.markdown(f"""<div class='shame-card'>⚠️ <b>{p}</b> lleva {racha} registros de puras repetidas. ¡Saladísimo! 🤡</div>""", unsafe_allow_html=True)
+    if not alguien_salado:
+        st.write("Por ahora todos traen suerte... por ahora.")
+
     st.divider()
     st.header("La Triste Realidad🤡")
     usuario_stats = st.selectbox("Analizar a:", nombres_papus, key="stats_user")
@@ -157,6 +166,24 @@ st.subheader("📖 Registro de Sobres")
 usuario = st.selectbox("¿Quién eres papu?🧐", nombres_papus)
 col_prioridad_mia = f"PRIORIDAD_{usuario}"
 
+# Sección para ELIMINAR repetidas (Perdidas o externas)
+with st.expander("🗑️ Bajas del Inventario (Repetidas perdidas o regaladas fuera)"):
+    mis_reps = df[df[usuario] > 1]['ESTAMPA'].tolist()
+    if mis_reps:
+        reps_baja = st.multiselect("¿Cuáles se fueron?💸", mis_reps)
+        if reps_baja:
+            bajas_pendientes = {}
+            for r in reps_baja:
+                bajas_pendientes[r] = st.number_input(f"Cuántas de {r}", min_value=1, max_value=int(df[df['ESTAMPA']==r][usuario].values[0]-1), key=f"del_{r}")
+            if st.button("Confirmar Bajas 🗑️"):
+                for est, cant in bajas_pendientes.items():
+                    df.at[df[df['ESTAMPA'] == est].index[0], usuario] -= cant
+                conn.update(spreadsheet=url_del_sheet, data=df)
+                agregar_al_log(f"⚠️ {usuario} eliminó {sum(bajas_pendientes.values())} repetidas del sistema")
+                st.rerun()
+    else:
+        st.write("No tienes repetidas para dar de baja, papu.")
+
 opciones = df['ESTAMPA'].tolist()
 seleccionadas = st.multiselect("¿Cuáles te salieron perro?😯", opciones)
 
@@ -172,8 +199,20 @@ if seleccionadas:
                 cambios_pendientes[idx] = st.number_input("Cantidad", min_value=0, value=1, key=f"num_{estampa}")
 
     if st.button("💾 Al toque pa, ya los puedes guardar", type="primary", use_container_width=True):
+        nuevas_detectadas = 0
         for idx_cambio, suma in cambios_pendientes.items():
-            if suma > 0: df.at[idx_cambio, usuario] += suma
+            if suma > 0:
+                if df.at[idx_cambio, usuario] == 0: nuevas_detectadas += 1
+                df.at[idx_cambio, usuario] += suma
+        
+        # Idea 7: Lógica del Muro de la Vergüenza
+        if nuevas_detectadas == 0:
+            st.session_state.racha_salada[usuario] += 1
+            if st.session_state.racha_salada[usuario] >= 2:
+                agregar_al_log(f"🤡 {usuario} registró puras repetidas (Racha: {st.session_state.racha_salada[usuario]})")
+        else:
+            st.session_state.racha_salada[usuario] = 0
+
         conn.update(spreadsheet=url_del_sheet, data=df)
         agregar_al_log(f"{usuario} registró {len(cambios_pendientes)} estampas")
         st.success("¡Sincronizado!🔥")
@@ -181,8 +220,8 @@ if seleccionadas:
 
 # --- MERCADO NIGGER ---
 st.divider()
-st.subheader("💱 Mercado Nigger & Caza-Tratos")
-tab1, tab2 = st.tabs(["Repetidas Disponibles", "🤝 Un precio justo🦑"])
+st.subheader("💱 Mercado Nigger & Tratos Pro")
+tab1, tab2, tab3 = st.tabs(["Repetidas Disponibles", "🤝 Un precio justo🦑", "🔄 Triangulaciones"])
 
 with tab1:
     me_faltan = df[df[usuario] == 0]
@@ -207,6 +246,27 @@ with tab2:
                 st.success(f"🔥 **¡TRATO IDEAL CON {otro}!**")
                 st.write(f"Tú le das: `{', '.join(yo_doy[:3])}` | Él te da: `{', '.join(el_da[:3])}`")
 
+with tab3:
+    # Idea 2: Intercambios Triangulares (A -> B -> C -> A)
+    triangulos = []
+    otros = [p for p in nombres_papus if p != usuario]
+    for b in otros:
+        for c in [p for p in otros if p != b]:
+            # Yo tengo lo que B quiere
+            yo_a_b = df[(df[usuario] > 1) & (df[b] == 0)]['ESTAMPA'].tolist()
+            # B tiene lo que C quiere
+            b_a_c = df[(df[b] > 1) & (df[c] == 0)]['ESTAMPA'].tolist()
+            # C tiene lo que YO quiero
+            c_a_yo = df[(df[c] > 1) & (df[usuario] == 0)]['ESTAMPA'].tolist()
+            
+            if yo_a_b and b_a_c and c_a_yo:
+                triangulos.append(f"🔄 **¡TRATO TRIPLE!** Tú le das a **{b}**, {b} le da a **{c}**, y **{c}** te da a ti.")
+    
+    if triangulos:
+        for t in triangulos: st.info(t)
+    else:
+        st.write("No hay carambolas de tres bandas disponibles por ahora.")
+
 # --- ÁLBUM VIRTUAL PAGINADO ---
 st.divider()
 st.subheader(f"📔 Álbum Virtual ({usuario})")
@@ -221,7 +281,6 @@ if f_faltantes: df_d = df_d[df_d[usuario] == 0]
 if f_deseadas: df_d = df_d[df_d[col_prioridad_mia] > 0]
 if f_nadie: df_d = df_d[(df_d[nombres_papus] == 0).all(axis=1)]
 
-# Idea 6: Contenedor con escaneo
 st.markdown("<div class='scan-container'>", unsafe_allow_html=True)
 ITEMS_PAG = 30
 total_p = (len(df_d) - 1) // ITEMS_PAG + 1
