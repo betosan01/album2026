@@ -42,7 +42,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🏆 Control Dashboard Papus")
+st.title("🏆 Control Albúm Papus")
 
 # --- 1. SIMBOLOGÍA DE COLORES ---
 st.markdown("""
@@ -72,7 +72,7 @@ if cambios_estructura:
     conn.update(spreadsheet=url_del_sheet, data=df)
 
 # --- 3. PROGRESO DEL ESCUADRÓN ---
-st.subheader("📊 Progreo General del Escuadrón")
+st.subheader("📊 Progreso General del Squad")
 cols_progreso = st.columns(len(nombres_papus))
 total_estampas = len(df)
 
@@ -120,7 +120,7 @@ if seleccionadas:
                         es_su_dorada = " (¡ES SU DORADA!⭐)" if df.at[idx, f"PRIORIDAD_{p}"] > 0 else ""
                         st.markdown(f"<div class='match-alert'>🤝 LA NECESITAAA {p}{es_su_dorada}</div>", unsafe_allow_html=True)
 
-    if st.button("💾 GUARDAR CAMBIOS EN LA NUBE", type="primary", use_container_width=True):
+    if st.button("💾 Al toque pa, ya los puedes guardar", type="primary", use_container_width=True):
         for idx_cambio, suma in cambios_pendientes.items():
             if suma > 0:
                 df.at[idx_cambio, usuario] += suma
@@ -130,7 +130,7 @@ if seleccionadas:
 
 # --- 5. MERCADO NEGRO ---
 st.divider()
-st.subheader("💱 Mercado Negro (Intercambios)")
+st.subheader("💱 Mercado Nigger")
 me_faltan = df[df[usuario] == 0]
 hay_intercambios = False
 cols_mercado = st.columns(2)
@@ -152,7 +152,7 @@ if not hay_intercambios:
 
 # --- 6. MI ÁLBUM VIRTUAL PAGINADO (LA NUEVA MAGIA) ---
 st.divider()
-st.subheader(f"📔 Mi Álbum Virtual ({usuario})")
+st.subheader(f"📔 Álbum Virtual ({usuario})")
 
 # Variables para la paginación (30 estampas por página = 6 columnas x 5 filas)
 if "album_page" not in st.session_state:
@@ -164,13 +164,13 @@ total_paginas = (total_estampas - 1) // ITEMS_POR_PAGINA + 1
 # Controles de navegación de páginas
 col_prev, col_info, col_next = st.columns([1, 2, 1])
 with col_prev:
-    if st.button("⬅️ Página Anterior") and st.session_state.album_page > 0:
+    if st.button("⬅️ Va pa´tras") and st.session_state.album_page > 0:
         st.session_state.album_page -= 1
         st.rerun()
 with col_info:
     st.markdown(f"<h4 style='text-align: center; color:#fafafa;'>📖 Página {st.session_state.album_page + 1} de {total_paginas}</h4>", unsafe_allow_html=True)
 with col_next:
-    if st.button("Página Siguiente ➡️") and st.session_state.album_page < total_paginas - 1:
+    if st.button("Va pa´lante ➡️") and st.session_state.album_page < total_paginas - 1:
         st.session_state.album_page += 1
         st.rerun()
 
@@ -221,7 +221,7 @@ with col_p2:
     si_doradas = df[df[col_prioridad_mia] > 0]['ESTAMPA'].tolist()
     if si_doradas:
         p_rem = st.selectbox("Quitar de Doradas:", si_doradas, key="rem_g")
-        if st.button("❌ Quitar prioridad"):
+        if st.button("❌ Ya no va"):
             df.at[df[df['ESTAMPA'] == p_rem].index[0], col_prioridad_mia] = 0
             conn.update(spreadsheet=url_del_sheet, data=df)
             st.rerun()
