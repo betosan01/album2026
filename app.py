@@ -141,12 +141,12 @@ with st.sidebar:
     for p, racha in st.session_state.racha_salada.items():
         if racha >= 2:
             alguien_salado = True
-            st.markdown(f"""<div class='shame-card'>⚠️ <b>{p}</b> lleva {racha} registros de puras repetidas. ¡Saladísimo! 🤡</div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div class='shame-card'>⚠️ <b>{p}</b> lleva {racha} registros de puras repetidas. ¡Ta´ saladísimo! 🤡</div>""", unsafe_allow_html=True)
     if not alguien_salado:
-        st.write("Por ahora todos traen suerte... por ahora.")
+        st.write("Todos traen suerte... por ahora.😶‍🌫️")
 
     st.divider()
-    st.header("La Triste Realidad🤡")
+    st.header("Triste Realidad🤡")
     usuario_stats = st.selectbox("Analizar a:", nombres_papus, key="stats_user")
     faltantes = total_total - len(df[df[usuario_stats] > 0])
     prob_nueva = 1 - (((total_total - faltantes) / total_total) ** 7)
@@ -167,7 +167,7 @@ usuario = st.selectbox("¿Quién eres papu?🧐", nombres_papus)
 col_prioridad_mia = f"PRIORIDAD_{usuario}"
 
 # Sección para ELIMINAR repetidas (Perdidas o externas)
-with st.expander("🗑️ Bajas del Inventario (Repetidas perdidas o regaladas fuera)"):
+with st.expander("🗑️ Bajas del Inventario (Regaladas fuera)"):
     mis_reps = df[df[usuario] > 1]['ESTAMPA'].tolist()
     if mis_reps:
         reps_baja = st.multiselect("¿Cuáles se fueron?💸", mis_reps)
@@ -175,14 +175,14 @@ with st.expander("🗑️ Bajas del Inventario (Repetidas perdidas o regaladas f
             bajas_pendientes = {}
             for r in reps_baja:
                 bajas_pendientes[r] = st.number_input(f"Cuántas de {r}", min_value=1, max_value=int(df[df['ESTAMPA']==r][usuario].values[0]-1), key=f"del_{r}")
-            if st.button("Confirmar Bajas 🗑️"):
+            if st.button("Adios popó 💩"):
                 for est, cant in bajas_pendientes.items():
                     df.at[df[df['ESTAMPA'] == est].index[0], usuario] -= cant
                 conn.update(spreadsheet=url_del_sheet, data=df)
                 agregar_al_log(f"⚠️ {usuario} eliminó {sum(bajas_pendientes.values())} repetidas del sistema")
                 st.rerun()
     else:
-        st.write("No tienes repetidas para dar de baja, papu.")
+        st.write("No se da lo que no se tiene papu.🤨")
 
 opciones = df['ESTAMPA'].tolist()
 seleccionadas = st.multiselect("¿Cuáles te salieron perro?😯", opciones)
@@ -220,7 +220,7 @@ if seleccionadas:
 
 # --- MERCADO NIGGER ---
 st.divider()
-st.subheader("💱 Mercado Nigger & Tratos Pro")
+st.subheader("💱 Mercado Nigger & Tratos Mega Pro🤯")
 tab1, tab2, tab3 = st.tabs(["Repetidas Disponibles", "🤝 Un precio justo🦑", "🔄 Triangulaciones"])
 
 with tab1:
@@ -232,8 +232,8 @@ with tab1:
             if otro != usuario and row[otro] > 1:
                 hay_inter = True
                 with (c_m1 if i % 2 == 0 else c_m2):
-                    st.markdown(f"<div style='padding:10px; border-left:5px solid #28a745; background:#262730; margin-bottom:5px;'><b>{row['ESTAMPA']}</b> ➔ Pídesela a <b>{otro}</b></div>", unsafe_allow_html=True)
-    if not hay_inter: st.info("Nadie tiene lo que te falta ahorita.")
+                    st.markdown(f"<div style='padding:10px; border-left:5px solid #28a745; background:#262730; margin-bottom:5px;'><b>{row['ESTAMPA']}</b> ➔ Ruégale a <b>{otro}</b></div>", unsafe_allow_html=True)
+    if not hay_inter: st.info("Ni modo pa, nadie la trae🫥")
 
 with tab2:
     trato = False
@@ -260,12 +260,12 @@ with tab3:
             c_a_yo = df[(df[c] > 1) & (df[usuario] == 0)]['ESTAMPA'].tolist()
             
             if yo_a_b and b_a_c and c_a_yo:
-                triangulos.append(f"🔄 **¡TRATO TRIPLE!** Tú le das a **{b}**, {b} le da a **{c}**, y **{c}** te da a ti.")
+                triangulos.append(f"🔄 **¡TENEMOS TRÍOO!🥵** Tú le das a **{b}**, {b} le da a **{c}**, y **{c}** te da a ti.")
     
     if triangulos:
         for t in triangulos: st.info(t)
     else:
-        st.write("No hay carambolas de tres bandas disponibles por ahora.")
+        st.write("No hay tríos disponibles por ahora.😢")
 
 # --- ÁLBUM VIRTUAL PAGINADO ---
 st.divider()
