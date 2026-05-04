@@ -130,23 +130,23 @@ for i, row in enumerate(df_rank.itertuples()):
 with st.sidebar:
     st.header("🕵️ Bitácora de Evidencias")
     if not st.session_state.log_actividad:
-        st.write("Sn novedades pa🕴🏼")
+        st.write("Nadie le ha movido pa🕴🏼")
     for log in st.session_state.log_actividad:
         # Idea 7: Resaltar metas en el log
         color = "#ffd700" if "NIVEL" in log else "#888"
         st.markdown(f"<div class='log-entry' style='color:{color};'>• {log}</div>", unsafe_allow_html=True)
     
     st.divider()
-    st.header("📉 La Triste Realidad🤡")
+    st.header("La Triste Realidad🤡")
     usuario_stats = st.selectbox("Analizar a:", nombres_papus, key="stats_user")
     faltantes = total_total - len(df[df[usuario_stats] > 0])
     prob_nueva = 1 - (((total_total - faltantes) / total_total) ** 7)
     sobres_estimados = (total_total * np.log(total_total) + 0.577 * total_total) / 7
     sobres_faltantes = max(0, sobres_estimados - ((total_total - faltantes) / 7))
     
-    st.write(f"**Te faltan:** {faltantes} estampas.")
-    st.write(f"**Chanza de nueva en sig. sobre:** {prob_nueva*100:.1f}%")
-    st.write(f"**Sobres pa' terminar (promedio):** {int(sobres_faltantes)}")
+    st.write(f"**Te faltan:** {faltantes} estampas.🫡")
+    st.write(f"**Chances de nueva en sig. sobre🥸:** {prob_nueva*100:.1f}%")
+    st.write(f"**Sobres pa' terminar💦** {int(sobres_faltantes)}")
 
 # --- SIMBOLOGÍA ---
 st.markdown("""<div class="legend-box"><div class="legend-item"><span class="circle" style="background-color: #f0f2f6;"></span> <b>Gris:</b> No la tienes🤣🫵</div><div class="legend-item"><span class="circle" style="background-color: #28a745;"></span> <b>Verde:</b> Ya la tienes😎</div><div class="legend-item"><span class="circle" style="background-color: #007bff;"></span> <b>Azul:</b> Alguien la necesita🤑</div><div class="legend-item"><span class="circle" style="background-color: #ffd700;"></span> <b>Dorado:</b> Tus deseadas ⭐</div></div>""", unsafe_allow_html=True)
