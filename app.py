@@ -102,7 +102,7 @@ with st.sidebar:
     
     st.divider()
     # --- 4. LA TRISTE REALIDAD (CALCULADORA AJUSTADA A 7 ESTAMPAS) ---
-    st.header("📉 La Triste Realidad")
+    st.header("📉 La Triste Realidad🤡")
     usuario_stats = st.selectbox("Analizar a:", nombres_papus, key="stats_user")
     faltantes = total_total - len(df[df[usuario_stats] > 0])
     
@@ -112,9 +112,9 @@ with st.sidebar:
     sobres_ya_abiertos = (total_total - faltantes) / 7
     sobres_faltantes = max(0, sobres_estimados_totales - sobres_ya_abiertos)
     
-    st.write(f"**Te faltan:** {faltantes} estampas.")
-    st.write(f"**Chanza de nueva en sig. sobre:** {prob_nueva*100:.1f}%")
-    st.write(f"**Sobres pa' terminar (promedio):** {int(sobres_faltantes)}")
+    st.write(f"**Por conseguir:** {faltantes} estampas.")
+    st.write(f"**Chances de nueva en sig. sobre:** {prob_nueva*100:.1f}%")
+    st.write(f"**Sobres pa' terminar💦:** {int(sobres_faltantes)}")
 
 # --- 4. IDENTIFICACIÓN Y REGISTRO ---
 st.divider()
@@ -161,7 +161,7 @@ with tab_mercado:
                 hay_inter = True
                 with (col_m1 if i % 2 == 0 else col_m2):
                     st.markdown(f"<div class='swap-card' style='padding:10px; border-left:5px solid #28a745; background:#262730; margin-bottom:5px;'><b>{row['ESTAMPA']}</b> ➔ Pídesela a <b>{otro}</b></div>", unsafe_allow_html=True)
-    if not hay_inter: st.info("Nadie tiene lo que te falta ahorita.")
+    if not hay_inter: st.info("Estás en la miseria pa. Nadie la tiene🤡")
 
 with tab_caza:
     tratos_encontrados = False
@@ -180,9 +180,9 @@ st.divider()
 st.subheader(f"📔 Álbum Virtual ({usuario})")
 
 col_f1, col_f2, col_f3 = st.columns(3)
-with col_f1: f_faltantes = st.checkbox("Solo mis faltantes")
-with col_f2: f_deseadas = st.checkbox("Solo mis deseadas ⭐")
-with col_f3: f_nadie = st.checkbox("Nadie del squad las tiene")
+with col_f1: f_faltantes = st.checkbox("Las que faltan🙁")
+with col_f2: f_deseadas = st.checkbox("Las que deseo🤩")
+with col_f3: f_nadie = st.checkbox("Ningún papu las tiene😒")
 
 df_display = df.copy()
 if f_faltantes: df_display = df_display[df_display[usuario] == 0]
@@ -197,13 +197,13 @@ if "album_page" not in st.session_state: st.session_state.album_page = 0
 
 col_p1, col_p2, col_p3 = st.columns([1,2,1])
 with col_p1: 
-    if st.button("⬅️ Atrás") and st.session_state.album_page > 0:
+    if st.button("⬅️ Va pa´trás") and st.session_state.album_page > 0:
         st.session_state.album_page -= 1
         st.rerun()
 with col_p2:
     st.markdown(f"<p style='text-align:center;'>Página {st.session_state.album_page + 1} de {max(1, total_p)}</p>", unsafe_allow_html=True)
 with col_p3:
-    if st.button("Siguiente ➡️") and st.session_state.album_page < total_p - 1:
+    if st.button("Va pa´lante ➡️") and st.session_state.album_page < total_p - 1:
         st.session_state.album_page += 1
         st.rerun()
 
