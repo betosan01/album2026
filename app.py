@@ -130,14 +130,14 @@ for i, row in enumerate(df_rank.itertuples()):
 with st.sidebar:
     st.header("🕵️ Bitácora de Evidencias")
     if not st.session_state.log_actividad:
-        st.write("Sin movimientos recientes, carnal.")
+        st.write("Sn novedades pa🕴🏼")
     for log in st.session_state.log_actividad:
         # Idea 7: Resaltar metas en el log
         color = "#ffd700" if "NIVEL" in log else "#888"
         st.markdown(f"<div class='log-entry' style='color:{color};'>• {log}</div>", unsafe_allow_html=True)
     
     st.divider()
-    st.header("📉 La Triste Realidad")
+    st.header("📉 La Triste Realidad🤡")
     usuario_stats = st.selectbox("Analizar a:", nombres_papus, key="stats_user")
     faltantes = total_total - len(df[df[usuario_stats] > 0])
     prob_nueva = 1 - (((total_total - faltantes) / total_total) ** 7)
@@ -182,7 +182,7 @@ if seleccionadas:
 # --- MERCADO NIGGER ---
 st.divider()
 st.subheader("💱 Mercado Nigger & Caza-Tratos")
-tab1, tab2 = st.tabs(["Repetidas Disponibles", "🤝 Tratos Ideales"])
+tab1, tab2 = st.tabs(["Repetidas Disponibles", "🤝 Un precio justo🦑"])
 
 with tab1:
     me_faltan = df[df[usuario] == 0]
@@ -212,9 +212,9 @@ st.divider()
 st.subheader(f"📔 Álbum Virtual ({usuario})")
 
 f1, f2, f3 = st.columns(3)
-with f1: f_faltantes = st.checkbox("Solo mis faltantes")
-with f2: f_deseadas = st.checkbox("Solo mis deseadas ⭐")
-with f3: f_nadie = st.checkbox("Nadie del squad las tiene")
+with f1: f_faltantes = st.checkbox("Las que me faltan🙁")
+with f2: f_deseadas = st.checkbox("Las deseadas🤩")
+with f3: f_nadie = st.checkbox("Ningún papu las tiene🙁")
 
 df_d = df.copy()
 if f_faltantes: df_d = df_d[df_d[usuario] == 0]
