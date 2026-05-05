@@ -104,6 +104,7 @@ def registrar_log_remoto(accion):
     nueva_fila = pd.DataFrame([{"FECHA": hora_cdmx.strftime("%d/%m %H:%M"), "ACCION": accion}])
     
     if st.session_state.df_logs is not None:
+        # Se mantienen los últimos 15 en la nube para historial, pero mostraremos solo 3
         st.session_state.df_logs = pd.concat([nueva_fila, st.session_state.df_logs]).head(15)
     else:
         st.session_state.df_logs = nueva_fila
@@ -284,8 +285,9 @@ with st.sidebar:
     
     st.divider()
     st.header("🕵️ Bitácora")
+    # AJUSTE: Solo muestra los últimos 3 movimientos (.head(3))
     if st.session_state.df_logs is not None and not st.session_state.df_logs.empty:
-        for _, log in st.session_state.df_logs.iterrows():
+        for _, log in st.session_state.df_logs.head(3).iterrows():
             st.markdown(f"<div class='log-entry'><b>[{log['FECHA']}]</b> {log['ACCION']}</div>", unsafe_allow_html=True)
     else:
         st.write("Sin registros previos.")
@@ -297,7 +299,7 @@ with st.sidebar:
         if racha >= 2:
             salado = True
             st.markdown(f"<div class='shame-card'>⚠️ <b>{p}</b> lleva {racha} registros de puras repetidas. 🤡</div>", unsafe_allow_html=True)
-    if not salado: st.write("Todos traen suerte... por ahora.😶‍🌫️")
+    if not salado: st.write("Todos traen suerte... por ahora.😶‍equalToSuperview")
 
 # --- REGISTRO & INVENTARIO (VERSIÓN CUADRÍCULA OPTIMIZADA) ---
 st.divider()
@@ -307,7 +309,7 @@ col_prio = f"PRIORIDAD_{usuario}"
 
 opciones = df['ESTAMPA'].tolist()
 
-# Buscador de texto libre en lugar del multiselect
+# Buscador de texto libre
 filtro_texto = st.text_input("🔍 Busca por código (Ej. MEX, ARG, FWC)...").upper()
 
 if "estampas_a_registrar" not in st.session_state: 
@@ -326,10 +328,8 @@ if filtro_texto:
             ya_la_tengo = df.at[idx, usuario] > 0
             
             with cols_botones[i % 6]:
-                # Usamos un checkbox con formato de botón
                 is_checked = st.session_state.estampas_a_registrar.get(est, 0) > 0
                 
-                # Alerta visual si es repetida
                 if ya_la_tengo:
                     label = f"⚠️ {est}"
                 else:
@@ -338,13 +338,12 @@ if filtro_texto:
                 seleccion = st.toggle(label, value=is_checked, key=f"tg_{est}")
                 
                 if seleccion:
-                    st.session_state.estampas_a_registrar[est] = 1 # Por defecto 1
+                    st.session_state.estampas_a_registrar[est] = 1
                 elif est in st.session_state.estampas_a_registrar:
                     del st.session_state.estampas_a_registrar[est]
     else:
         st.warning("No se encontró esa estampa. Revisa bien el código, pai.")
 
-# Mostrar panel de control solo si ya se seleccionó al menos una estampa (incluso si se borra el buscador)
 if st.session_state.estampas_a_registrar:
     st.write("### 📋 Panel de Control (Tu Lote Actual)")
     cols_control = st.columns(4)
@@ -372,7 +371,6 @@ if st.session_state.estampas_a_registrar:
                         if df.at[idx, usuario] == 0: nuevas += 1
                         df.at[idx, usuario] += suma
                 
-                # Asignación de insignias por eventos
                 if total_registradas > 15: st.session_state.insignias_eventos[usuario].add("Fayuquero")
                 if nuevas >= 4: st.session_state.insignias_eventos[usuario].add("Bendecido")
                 
@@ -383,7 +381,7 @@ if st.session_state.estampas_a_registrar:
                     st.session_state.df_maestro = df
                     registrar_log_remoto(f"{usuario} registró {len(cambios)} estampas")
                     st.session_state.ultima_transaccion = transaccion_actual
-                    st.session_state.estampas_a_registrar = {} # Limpiamos el carrito
+                    st.session_state.estampas_a_registrar = {}
                     st.rerun()
                 except Exception as e:
                     st.error("🚨 Ocurrió un problema al guardar.")
