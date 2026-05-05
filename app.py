@@ -299,7 +299,7 @@ with st.sidebar:
         if racha >= 2:
             salado = True
             st.markdown(f"<div class='shame-card'>⚠️ <b>{p}</b> lleva {racha} registros de puras repetidas. 🤡</div>", unsafe_allow_html=True)
-    if not salado: st.write("Todos traen suerte... por ahora.😶‍equalToSuperview")
+    if not salado: st.write("Todos traen suerte... por ahora.😶‍🌫️")
 
 # --- REGISTRO & INVENTARIO (VERSIÓN CUADRÍCULA OPTIMIZADA) ---
 st.divider()
@@ -342,7 +342,7 @@ if filtro_texto:
                 elif est in st.session_state.estampas_a_registrar:
                     del st.session_state.estampas_a_registrar[est]
     else:
-        st.warning("No se encontró esa estampa. Revisa bien el código, pai.")
+        st.warning("No se encontró esa estampa. Revisa bien el código, pai.🤨")
 
 if st.session_state.estampas_a_registrar:
     st.write("### 📋 Panel de Control (Tu Lote Actual)")
