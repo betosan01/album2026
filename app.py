@@ -63,9 +63,11 @@ df.columns = [str(c).strip().upper() for c in df.columns]
 nombres_papus = ["BETOSAN", "LUISE", "OSCARINHO", "ROYS"]
 metas_colores = {10: "#cd7f32", 25: "#c0c0c0", 50: "#007bff", 75: "#9b59b6", 90: "#e74c3c", 95: "#ffd700", 100: "RAINBOW"}
 
+# Inicialización de estados de sesión
 if "log_actividad" not in st.session_state: st.session_state.log_actividad = []
 if "metas_alcanzadas" not in st.session_state: st.session_state.metas_alcanzadas = {p: [] for p in nombres_papus}
 if "racha_salada" not in st.session_state: st.session_state.racha_salada = {p: 0 for p in nombres_papus}
+if "ultima_transaccion" not in st.session_state: st.session_state.ultima_transaccion = None
 
 def agregar_al_log(accion):
     st.session_state.log_actividad.insert(0, accion)
@@ -100,7 +102,6 @@ def calcular_insignias(df_rank, df_completo):
     ayuda_potencial = {}
     for p in nombres_papus:
         otros = [o for o in nombres_papus if o != p]
-        # Repetidas de P que le faltan a al menos uno de los otros
         sirven = df_completo[(df_completo[p] > 1) & (df_completo[otros].eq(0).any(axis=1))].shape[0]
         ayuda_potencial[p] = sirven
     el_donante = max(ayuda_potencial, key=ayuda_potencial.get)
@@ -197,7 +198,10 @@ usuario = st.selectbox("¿Quién eres papu?🧐", nombres_papus)
 col_prio = f"PRIORIDAD_{usuario}"
 
 opciones = df['ESTAMPA'].tolist()
-seleccionadas = st.multiselect("¿Cuáles te salieron perro?😯", opciones)
+
+# KEY AÑADIDA PARA CONTROL DE ESTADO
+if "multi_registro" not in st.session_state: st.session_state.multi_registro = []
+seleccionadas = st.multiselect("¿Cuáles te salieron perro?😯", opciones, key="multi_registro")
 
 if seleccionadas:
     st.write("### 📋 Panel de Control")
@@ -209,16 +213,28 @@ if seleccionadas:
             with st.container(border=True):
                 st.markdown(f"<h4 style='text-align:center;'>{est}</h4>", unsafe_allow_html=True)
                 cambios[idx] = st.number_input("Cantidad", min_value=0, value=1, key=f"num_{est}")
+                
     if st.button("💾 Al toque pa, ya los puedes guardar", type="primary", use_container_width=True):
-        nuevas = 0
-        for idx, suma in cambios.items():
-            if suma > 0:
-                if df.at[idx, usuario] == 0: nuevas += 1
-                df.at[idx, usuario] += suma
-        st.session_state.racha_salada[usuario] = 0 if nuevas > 0 else st.session_state.racha_salada[usuario] + 1
-        conn.update(spreadsheet=url_del_sheet, data=df)
-        agregar_al_log(f"{usuario} registró {len(cambios)} estampas")
-        st.rerun()
+        # 🕵️‍♂️ BLOQUEO ANTI-DOBLE CLIC
+        transaccion_actual = {"user": usuario, "cambios": cambios.copy()}
+        
+        if st.session_state.ultima_transaccion == transaccion_actual:
+            st.warning("¡Tranquilo papu! 🛑 Detectamos un doble clic. Esta evidencia ya fue registrada.")
+        else:
+            nuevas = 0
+            for idx, suma in cambios.items():
+                if suma > 0:
+                    if df.at[idx, usuario] == 0: nuevas += 1
+                    df.at[idx, usuario] += suma
+            
+            st.session_state.racha_salada[usuario] = 0 if nuevas > 0 else st.session_state.racha_salada[usuario] + 1
+            conn.update(spreadsheet=url_del_sheet, data=df)
+            agregar_al_log(f"{usuario} registró {len(cambios)} estampas")
+            
+            # Guardar la huella de la transacción y limpiar la UI
+            st.session_state.ultima_transaccion = transaccion_actual
+            del st.session_state["multi_registro"] # Limpia las estampas seleccionadas automáticamente
+            st.rerun()
 
 # --- INVENTARIO DE REPETIDAS ---
 st.divider()
@@ -234,6 +250,28 @@ if not df_reps.empty:
         agregar_al_log(f"🕵️ {usuario} ajustó su inventario")
         st.rerun()
 else: st.info("Sin repetidas registradas. ¡Suerte! 🍀")
+
+# --- ADIOS POPÓ (BAJAS EXTERNAS) REINTEGRADO ---
+st.divider()
+with st.expander("🗑️ Adios popó 💩 (Bajas externas)"):
+    mis_reps = df[df[usuario] > 1]['ESTAMPA'].tolist()
+    if mis_reps:
+        if "multi_bajas" not in st.session_state: st.session_state.multi_bajas = []
+        baja = st.multiselect("¿Cuáles se fueron?💸", mis_reps, key="multi_bajas")
+        if baja:
+            b_pend = {r: st.number_input(f"Cant {r}", min_value=1, max_value=int(df[df['ESTAMPA']==r][usuario].values[0]-1), key=f"d_{r}") for r in baja}
+            if st.button("Confirmar baja"):
+                # Seguro anti-doble clic para bajas
+                transaccion_baja = {"tipo": "baja", "user": usuario, "cambios": b_pend.copy()}
+                if st.session_state.ultima_transaccion == transaccion_baja:
+                    st.warning("Doble clic evitado. La baja ya se procesó. 🛑")
+                else:
+                    for e, c in b_pend.items(): df.at[df[df['ESTAMPA'] == e].index[0], usuario] -= c
+                    conn.update(spreadsheet=url_del_sheet, data=df)
+                    agregar_al_log(f"⚠️ {usuario} eliminó repetidas")
+                    st.session_state.ultima_transaccion = transaccion_baja
+                    del st.session_state["multi_bajas"] # Limpia la caja automáticamente
+                    st.rerun()
 
 # --- TRATOS Y MERCADO ---
 st.divider()
