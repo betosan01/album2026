@@ -193,7 +193,7 @@ with st.sidebar:
 
 # --- REGISTRO & INVENTARIO ---
 st.divider()
-st.subheader("📖 Operativo: Registro de Sobres")
+st.subheader("📖 Registro de Sobres")
 usuario = st.selectbox("¿Quién eres papu?🧐", nombres_papus)
 col_prio = f"PRIORIDAD_{usuario}"
 
@@ -238,7 +238,7 @@ if seleccionadas:
 
 # --- INVENTARIO DE REPETIDAS ---
 st.divider()
-st.subheader(f"📋 Mi Inventario de Repetidas ({usuario})")
+st.subheader(f"📋 Repetidas ({usuario})")
 df_reps = df[df[usuario] > 1][['ESTAMPA', usuario]].copy()
 if not df_reps.empty:
     df_reps_edited = st.data_editor(df_reps, column_config={usuario: st.column_config.NumberColumn("Total", min_value=1), "ESTAMPA": st.column_config.Column(disabled=True)}, hide_index=True, use_container_width=True, key=f"ed_{usuario}")
