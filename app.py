@@ -255,12 +255,29 @@ for i, (_, r) in enumerate(c_v.iterrows()):
     with cols_a[i % 6]: st.markdown(f"<div class='sticker-box {css}'>{r['ESTAMPA']}</div>", unsafe_allow_html=True)
 st.markdown("</div>", unsafe_allow_html=True)
 
-# --- DORADAS ---
+# --- DORADAS (CORREGIDO) ---
 st.divider()
 st.subheader("⭐ TUS MÁS DESEADAS")
 cg1, cg2 = st.columns(2)
+
+# Columna 1: Agregar a Doradas
 with cg1:
     no_p = df[(df[f"PRIORIDAD_{usuario}"] == 0) & (df[usuario] == 0)]['ESTAMPA'].tolist()
-    if no_p and st.button("✨ LA NECESITOOOOOOO🧽"):
-        df.at[df[df['ESTAMPA'] == st.selectbox("Marcar:", no_p)].index[0], f"PRIORIDAD_{usuario}"] = 1
-        conn.update(spreadsheet=url_del_sheet, data=df); st.rerun()
+    if no_p:
+        p_add = st.selectbox("Marcar como Dorada:", no_p, key="add_g")
+        if st.button("✨ LA NECESITOOOOOOO🧽"):
+            df.at[df[df['ESTAMPA'] == p_add].index[0], f"PRIORIDAD_{usuario}"] = 1
+            conn.update(spreadsheet=url_del_sheet, data=df)
+            agregar_al_log(f"{usuario} marcó {p_add} como dorada")
+            st.rerun()
+
+# Columna 2: Quitar de Doradas
+with cg2:
+    si_p = df[df[f"PRIORIDAD_{usuario}"] > 0]['ESTAMPA'].tolist()
+    if si_p:
+        p_rem = st.selectbox("Quitar de Doradas:", si_p, key="rem_g")
+        if st.button("❌ Ya no va"):
+            df.at[df[df['ESTAMPA'] == p_rem].index[0], f"PRIORIDAD_{usuario}"] = 0
+            conn.update(spreadsheet=url_del_sheet, data=df)
+            agregar_al_log(f"{usuario} quitó {p_rem} de sus doradas")
+            st.rerun()
