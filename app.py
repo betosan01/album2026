@@ -54,24 +54,57 @@ def lanzar_fuegos(nombre, meta, color_hex):
         </div>
     """, height=120)
 
-# --- CONEXIÓN A DATOS ---
-url_del_sheet = "https://docs.google.com/spreadsheets/d/10sQ2DRiylPSinFnOlbThhz2Wz6H24eXvyoKn31hqWKY/edit?gid=0#gid=0"
-conn = st.connection("gsheets", type=GSheetsConnection)
-df = conn.read(spreadsheet=url_del_sheet, ttl="0")
-df.columns = [str(c).strip().upper() for c in df.columns]
-
+# --- INICIALIZACIÓN DE ESTADOS DE SESIÓN ---
 nombres_papus = ["BETOSAN", "LUISE", "OSCARINHO", "ROYS"]
 metas_colores = {10: "#cd7f32", 25: "#c0c0c0", 50: "#007bff", 75: "#9b59b6", 90: "#e74c3c", 95: "#ffd700", 100: "RAINBOW"}
 
-# Inicialización de estados de sesión
 if "log_actividad" not in st.session_state: st.session_state.log_actividad = []
 if "metas_alcanzadas" not in st.session_state: st.session_state.metas_alcanzadas = {p: [] for p in nombres_papus}
 if "racha_salada" not in st.session_state: st.session_state.racha_salada = {p: 0 for p in nombres_papus}
 if "ultima_transaccion" not in st.session_state: st.session_state.ultima_transaccion = None
+if "df_maestro" not in st.session_state: st.session_state.df_maestro = None
 
 def agregar_al_log(accion):
     st.session_state.log_actividad.insert(0, accion)
     if len(st.session_state.log_actividad) > 10: st.session_state.log_actividad.pop()
+
+# --- CONEXIÓN A DATOS Y TRADUCTOR DE ERRORES FORENSE ---
+url_del_sheet = "https://docs.google.com/spreadsheets/d/10sQ2DRiylPSinFnOlbThhz2Wz6H24eXvyoKn31hqWKY/edit?gid=0#gid=0"
+conn = st.connection("gsheets", type=GSheetsConnection)
+
+def cargar_datos_desde_google():
+    try:
+        # Ya no usamos ttl="0". Leemos de Google y lo guardamos en memoria.
+        temp_df = conn.read(spreadsheet=url_del_sheet, ttl=0) # ttl=0 fuerza la lectura, pero controlada
+        temp_df.columns = [str(c).strip().upper() for c in temp_df.columns]
+        st.session_state.df_maestro = temp_df
+        return True
+    except Exception as e:
+        error_msg = str(e)
+        st.error("🚨 ¡ALTO AHÍ! Falla en la Escena del Crimen (Error de Conexión) 🚨")
+        
+        # Traductor de Errores
+        if "APIError" in error_msg or "quota" in error_msg.lower():
+            st.warning("⚠️ **Diagnóstico:** Saturaste a Google a peticiones (Cuota excedida). El sistema necesita respirar. Espérate 30 segundos y pícale al botón de sincronizar de abajo.")
+        elif "insufficient authentication" in error_msg.lower() or "permission" in error_msg.lower():
+            st.warning("⚠️ **Diagnóstico:** Google te bateó. El archivo Sheets es privado y no has metido el correo de la cuenta de servicio como editor, o el JSON de Secrets está mal.")
+        else:
+            st.warning(f"⚠️ **Diagnóstico:** Error desconocido. Pásale este reporte al perito:\n\n`{error_msg}`")
+        return False
+
+# Cargar la primera vez o si no hay datos en memoria
+if st.session_state.df_maestro is None:
+    if not cargar_datos_desde_google():
+        st.stop() # Detiene la app aquí si hay error para no reventar lo demás
+
+df = st.session_state.df_maestro
+
+# Botón para forzar actualización sin saturar el sistema
+if st.sidebar.button("🔄 Sincronizar Datos con la Nube", use_container_width=True):
+    with st.spinner("Descargando la última evidencia..."):
+        if cargar_datos_desde_google():
+            st.sidebar.success("¡Información al tiro!")
+            st.rerun()
 
 # --- CÁLCULO DEL MEGAZORD ---
 total_total = len(df)
@@ -90,15 +123,12 @@ st.progress(porcentaje_megazord / 100)
 def calcular_insignias(df_rank, df_completo):
     insignias = {p: [] for p in nombres_papus}
     
-    # 👑Big Papu (Primero en el Ranking)
     el_patron = df_rank.iloc[0]['PAPU']
     insignias[el_patron].append(("👑", "Big Papu: Líder actual del Power Ranking."))
     
-    # 🎩 El Monopolio (Más repetidas totales)
     el_monopolio = df_rank.sort_values(by="REPETIDAS", ascending=False).iloc[0]['PAPU']
     insignias[el_monopolio].append(("🎩", "El Monopolio: El que más mercancía repetida tiene."))
     
-    # 🩸 El Donante Universal (El que más ayuda a los otros)
     ayuda_potencial = {}
     for p in nombres_papus:
         otros = [o for o in nombres_papus if o != p]
@@ -108,24 +138,20 @@ def calcular_insignias(df_rank, df_completo):
     if ayuda_potencial[el_donante] > 0:
         insignias[el_donante].append(("🩸", "Donante Universal: El que más dona estapas al squad."))
     
-    # 💪🏼 El Codo (Buen progreso pero no suelta repetidas)
     for p in nombres_papus:
         reps = df_rank[df_rank['PAPU'] == p]['REPETIDAS'].values[0]
         prog = float(df_rank[df_rank['PAPU'] == p]['PROGRESO'].values[0].replace('%',''))
         if prog > 20 and reps < 3:
             insignias[p].append(("💪🏼", "El Codo: Buen avance, pero no aporta nada al Mercado Nigger."))
             
-    # 🧽 El Aferrado (Más doradas marcadas)
     deseadas_counts = {p: df_completo[f"PRIORIDAD_{p}"].sum() for p in nombres_papus}
     el_aferrado = max(deseadas_counts, key=deseadas_counts.get)
     if deseadas_counts[el_aferrado] > 0:
         insignias[el_aferrado].append(("🧽", "El Aferrado: El que tiene más estampas marcadas como deseadas."))
 
-    # 👻 Fantasmón (Último lugar)
     el_fantasma = df_rank.iloc[-1]['PAPU']
     insignias[el_fantasma].append(("👻", "Fantasmón: En calidad de desaparecido (último lugar)."))
 
-    # 🤡 El Cliente Frecuente (Muro de la vergüenza activo)
     for p, racha in st.session_state.racha_salada.items():
         if racha >= 2:
             insignias[p].append(("🤡", "Cliente Frecuente: Atrapado en el Muro de la Vergüenza."))
@@ -199,7 +225,6 @@ col_prio = f"PRIORIDAD_{usuario}"
 
 opciones = df['ESTAMPA'].tolist()
 
-# KEY AÑADIDA PARA CONTROL DE ESTADO
 if "multi_registro" not in st.session_state: st.session_state.multi_registro = []
 seleccionadas = st.multiselect("¿Cuáles te salieron perro?😯", opciones, key="multi_registro")
 
@@ -221,20 +246,26 @@ if seleccionadas:
         if st.session_state.ultima_transaccion == transaccion_actual:
             st.warning("¡Tranquilo papu! 🛑 Detectamos un doble clic. Esta evidencia ya fue registrada.")
         else:
-            nuevas = 0
-            for idx, suma in cambios.items():
-                if suma > 0:
-                    if df.at[idx, usuario] == 0: nuevas += 1
-                    df.at[idx, usuario] += suma
-            
-            st.session_state.racha_salada[usuario] = 0 if nuevas > 0 else st.session_state.racha_salada[usuario] + 1
-            conn.update(spreadsheet=url_del_sheet, data=df)
-            agregar_al_log(f"{usuario} registró {len(cambios)} estampas")
-            
-            # Guardar la huella de la transacción y limpiar la UI
-            st.session_state.ultima_transaccion = transaccion_actual
-            del st.session_state["multi_registro"] # Limpia las estampas seleccionadas automáticamente
-            st.rerun()
+            with st.spinner("Subiendo datos a la nube..."):
+                nuevas = 0
+                for idx, suma in cambios.items():
+                    if suma > 0:
+                        if df.at[idx, usuario] == 0: nuevas += 1
+                        df.at[idx, usuario] += suma
+                
+                st.session_state.racha_salada[usuario] = 0 if nuevas > 0 else st.session_state.racha_salada[usuario] + 1
+                
+                # Intentamos guardar en la nube
+                try:
+                    conn.update(spreadsheet=url_del_sheet, data=df)
+                    st.session_state.df_maestro = df # Actualizamos la memoria
+                    agregar_al_log(f"{usuario} registró {len(cambios)} estampas")
+                    
+                    st.session_state.ultima_transaccion = transaccion_actual
+                    del st.session_state["multi_registro"]
+                    st.rerun()
+                except Exception as e:
+                    st.error("🚨 Ocurrió un problema al intentar guardar. Dale 10 segundos e intenta de nuevo.")
 
 # --- INVENTARIO DE REPETIDAS ---
 st.divider()
@@ -243,15 +274,20 @@ df_reps = df[df[usuario] > 1][['ESTAMPA', usuario]].copy()
 if not df_reps.empty:
     df_reps_edited = st.data_editor(df_reps, column_config={usuario: st.column_config.NumberColumn("Total", min_value=1), "ESTAMPA": st.column_config.Column(disabled=True)}, hide_index=True, use_container_width=True, key=f"ed_{usuario}")
     if st.button("🔄 Actualizar Cantidades 🛠️"):
-        for _, row in df_reps_edited.iterrows():
-            idx_real = df[df['ESTAMPA'] == row['ESTAMPA']].index[0]
-            df.at[idx_real, usuario] = row[usuario]
-        conn.update(spreadsheet=url_del_sheet, data=df)
-        agregar_al_log(f"🕵️ {usuario} ajustó su inventario")
-        st.rerun()
+        with st.spinner("Ajustando inventario..."):
+            for _, row in df_reps_edited.iterrows():
+                idx_real = df[df['ESTAMPA'] == row['ESTAMPA']].index[0]
+                df.at[idx_real, usuario] = row[usuario]
+            try:
+                conn.update(spreadsheet=url_del_sheet, data=df)
+                st.session_state.df_maestro = df
+                agregar_al_log(f"🕵️ {usuario} ajustó su inventario")
+                st.rerun()
+            except:
+                st.error("🚨 La API de Google está saturada. Espera unos segundos.")
 else: st.info("Sin repetidas registradas. ¡Suerte! 🍀")
 
-# --- ADIOS POPÓ (BAJAS EXTERNAS) REINTEGRADO ---
+# --- ADIOS POPÓ (BAJAS EXTERNAS) ---
 st.divider()
 with st.expander("🗑️ Adios popó 💩 (Bajas externas)"):
     mis_reps = df[df[usuario] > 1]['ESTAMPA'].tolist()
@@ -261,17 +297,21 @@ with st.expander("🗑️ Adios popó 💩 (Bajas externas)"):
         if baja:
             b_pend = {r: st.number_input(f"Cant {r}", min_value=1, max_value=int(df[df['ESTAMPA']==r][usuario].values[0]-1), key=f"d_{r}") for r in baja}
             if st.button("Confirmar baja"):
-                # Seguro anti-doble clic para bajas
                 transaccion_baja = {"tipo": "baja", "user": usuario, "cambios": b_pend.copy()}
                 if st.session_state.ultima_transaccion == transaccion_baja:
                     st.warning("Doble clic evitado. La baja ya se procesó. 🛑")
                 else:
-                    for e, c in b_pend.items(): df.at[df[df['ESTAMPA'] == e].index[0], usuario] -= c
-                    conn.update(spreadsheet=url_del_sheet, data=df)
-                    agregar_al_log(f"⚠️ {usuario} eliminó repetidas")
-                    st.session_state.ultima_transaccion = transaccion_baja
-                    del st.session_state["multi_bajas"] # Limpia la caja automáticamente
-                    st.rerun()
+                    with st.spinner("Ejecutando bajas..."):
+                        for e, c in b_pend.items(): df.at[df[df['ESTAMPA'] == e].index[0], usuario] -= c
+                        try:
+                            conn.update(spreadsheet=url_del_sheet, data=df)
+                            st.session_state.df_maestro = df
+                            agregar_al_log(f"⚠️ {usuario} eliminó repetidas")
+                            st.session_state.ultima_transaccion = transaccion_baja
+                            del st.session_state["multi_bajas"]
+                            st.rerun()
+                        except:
+                            st.error("🚨 Error al conectar. Intenta de nuevo más al rato.")
 
 # --- TRATOS Y MERCADO ---
 st.divider()
@@ -334,11 +374,21 @@ with cg1:
         p_add = st.selectbox("Marcar como Dorada:", no_p, key="add_g")
         if st.button("✨ LA NECESITOOOOOOO🧽"):
             df.at[df[df['ESTAMPA'] == p_add].index[0], f"PRIORIDAD_{usuario}"] = 1
-            conn.update(spreadsheet=url_del_sheet, data=df); st.rerun()
+            try:
+                conn.update(spreadsheet=url_del_sheet, data=df)
+                st.session_state.df_maestro = df
+                st.rerun()
+            except:
+                st.error("🚨 Falló al guardar. Intenta de nuevo.")
 with cg2:
     si_p = df[df[f"PRIORIDAD_{usuario}"] > 0]['ESTAMPA'].tolist()
     if si_p:
         p_rem = st.selectbox("Quitar de Doradas:", si_p, key="rem_g")
         if st.button("❌ Ya no va"):
             df.at[df[df['ESTAMPA'] == p_rem].index[0], f"PRIORIDAD_{usuario}"] = 0
-            conn.update(spreadsheet=url_del_sheet, data=df); st.rerun()
+            try:
+                conn.update(spreadsheet=url_del_sheet, data=df)
+                st.session_state.df_maestro = df
+                st.rerun()
+            except:
+                st.error("🚨 Falló al guardar. Intenta de nuevo.")
