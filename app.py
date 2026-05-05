@@ -158,12 +158,12 @@ def calcular_insignias(df_rank, df_completo, df_logs):
     el_patron = df_rank.iloc[0]['PAPU']
     insignias[el_patron].append(("👑", "Big Papu: Líder actual del Power Ranking."))
     
-    # 2. 🚂 El Cruzazuleado
+    # 2. 🚂 Cruzazuleado
     for p in nombres_papus:
         if "Cruzazuleado" in st.session_state.insignias_eventos[p]:
-            insignias[p].append(("🚂", "El Cruzazuleado: Era el #1 y la pecheó."))
+            insignias[p].append(("🚂", "Cruzazuleado: Era el #1 y la pecheó."))
 
-    # 3. 📦 El de la Paca
+    # 3. 📦 Clonmadre
     for p in nombres_papus:
         if df_completo[p].max() >= 5: # 1 pegada + 4 o más repetidas
             insignias[p].append(("📦", "El de la Paca: Tiene 4 o más repetidas de una misma estampa."))
@@ -318,7 +318,7 @@ if filtro_texto:
     opciones_filtradas = [est for est in opciones if filtro_texto in est]
     
     if opciones_filtradas:
-        st.write("👇 Dale clic a las que te salieron:")
+        st.write("👇 Selecciona las que te salieron pa:")
         cols_botones = st.columns(6)
         
         for i, est in enumerate(opciones_filtradas):
@@ -342,7 +342,7 @@ if filtro_texto:
                 elif est in st.session_state.estampas_a_registrar:
                     del st.session_state.estampas_a_registrar[est]
     else:
-        st.warning("No se encontró esa estampa. Revisa bien el código, papu.")
+        st.warning("No se encontró esa estampa. Revisa bien el código, pai.")
 
 # Mostrar panel de control solo si ya se seleccionó al menos una estampa (incluso si se borra el buscador)
 if st.session_state.estampas_a_registrar:
