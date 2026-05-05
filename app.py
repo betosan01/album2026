@@ -3,7 +3,7 @@ from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 import numpy as np
 import streamlit.components.v1 as components
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # Configuración de pantalla ancha
 st.set_page_config(page_title="Dashboard Mundial 2026 - Megazord Edition", layout="wide")
@@ -66,18 +66,20 @@ if "ultima_transaccion" not in st.session_state: st.session_state.ultima_transac
 if "df_maestro" not in st.session_state: st.session_state.df_maestro = None
 if "df_logs" not in st.session_state: st.session_state.df_logs = None
 
+# Variables para las nuevas insignias que dependen de eventos o memoria
+if "prev_rank" not in st.session_state: st.session_state.prev_rank = {}
+if "insignias_eventos" not in st.session_state: st.session_state.insignias_eventos = {p: set() for p in nombres_papus}
+
 # --- CONEXIÓN A DATOS Y TRADUCTOR DE ERRORES FORENSE ---
 url_del_sheet = "https://docs.google.com/spreadsheets/d/10sQ2DRiylPSinFnOlbThhz2Wz6H24eXvyoKn31hqWKY/edit?gid=0#gid=0"
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 def cargar_datos_desde_google():
     try:
-        # Cargar Base de Datos Principal (SHEET1)
         temp_df = conn.read(spreadsheet=url_del_sheet, worksheet="SHEET1", ttl=0)
         temp_df.columns = [str(c).strip().upper() for c in temp_df.columns]
         st.session_state.df_maestro = temp_df
         
-        # Cargar Bitácora Persistente (LOGS)
         try:
             temp_logs = conn.read(spreadsheet=url_del_sheet, worksheet="LOGS", ttl=0)
             st.session_state.df_logs = temp_logs
@@ -97,7 +99,10 @@ def cargar_datos_desde_google():
         return False
 
 def registrar_log_remoto(accion):
-    nueva_fila = pd.DataFrame([{"FECHA": datetime.now().strftime("%d/%m %H:%M"), "ACCION": accion}])
+    # AJUSTE: Horario de la CDMX (UTC -6)
+    hora_cdmx = datetime.utcnow() + timedelta(hours=-6)
+    nueva_fila = pd.DataFrame([{"FECHA": hora_cdmx.strftime("%d/%m %H:%M"), "ACCION": accion}])
+    
     if st.session_state.df_logs is not None:
         st.session_state.df_logs = pd.concat([nueva_fila, st.session_state.df_logs]).head(15)
     else:
@@ -135,42 +140,98 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 st.progress(porcentaje_megazord / 100)
 
-# --- LÓGICA DE INSIGNIAS ---
-def calcular_insignias(df_rank, df_completo):
+# --- LÓGICA DE LAS 10 INSIGNIAS OFICIALES ---
+def calcular_insignias(df_rank, df_completo, df_logs):
     insignias = {p: [] for p in nombres_papus}
+    
+    # Rastrear posiciones para el Cruzazuleado
+    rank_positions = {row.PAPU: i+1 for i, row in enumerate(df_rank.itertuples())}
+    if not st.session_state.prev_rank:
+        st.session_state.prev_rank = rank_positions
+    else:
+        for p, pos in rank_positions.items():
+            if st.session_state.prev_rank.get(p) == 1 and pos > 1:
+                st.session_state.insignias_eventos[p].add("Cruzazuleado")
+        st.session_state.prev_rank = rank_positions
+
+    # 1. 👑 Big Papu
     el_patron = df_rank.iloc[0]['PAPU']
     insignias[el_patron].append(("👑", "Big Papu: Líder actual del Power Ranking."))
     
-    el_monopolio = df_rank.sort_values(by="REPETIDAS", ascending=False).iloc[0]['PAPU']
-    insignias[el_monopolio].append(("🎩", "El Monopolio: El que más mercancía repetida tiene."))
-    
-    ayuda_potencial = {}
+    # 2. 🚂 El Cruzazuleado
     for p in nombres_papus:
-        otros = [o for o in nombres_papus if o != p]
-        sirven = df_completo[(df_completo[p] > 1) & (df_completo[otros].eq(0).any(axis=1))].shape[0]
-        ayuda_potencial[p] = sirven
-    el_donante = max(ayuda_potencial, key=ayuda_potencial.get)
-    if ayuda_potencial[el_donante] > 0:
-        insignias[el_donante].append(("🩸", "Donante Universal: El que más dona estapas al squad."))
-    
+        if "Cruzazuleado" in st.session_state.insignias_eventos[p]:
+            insignias[p].append(("🚂", "El Cruzazuleado: Era el #1 y la pecheó."))
+
+    # 3. 📦 El de la Paca
     for p in nombres_papus:
+        if df_completo[p].max() >= 5: # 1 pegada + 4 o más repetidas
+            insignias[p].append(("📦", "El de la Paca: Tiene 4 o más repetidas de una misma estampa."))
+            
+    # 4. 🤝 El Coyote
+    tratos_count = {p: 0 for p in nombres_papus}
+    for p in nombres_papus:
+        for o in nombres_papus:
+            if p != o:
+                yo = df_completo[(df_completo[p] > 1) & (df_completo[o] == 0)].shape[0]
+                el = df_completo[(df_completo[o] > 1) & (df_completo[p] == 0)].shape[0]
+                tratos_count[p] += min(yo, el)
+    el_coyote = max(tratos_count, key=tratos_count.get)
+    if tratos_count[el_coyote] > 0:
+        insignias[el_coyote].append(("🤝", "El Coyote: El rey del trueque. Más tratos 1 a 1 activos."))
+        
+    # 5. 🛍️ El Fayuquero y 7. 🎯 El Bendecido (Por eventos)
+    for p in nombres_papus:
+        if "Fayuquero" in st.session_state.insignias_eventos[p]:
+            insignias[p].append(("🛍️", "El Fayuquero: Registró más de 15 estampas de un jalón."))
+        if "Bendecido" in st.session_state.insignias_eventos[p]:
+            insignias[p].append(("🎯", "El Bendecido: Puntería fina, le salieron 4 o más nuevas en un sobre."))
+
+    # 6. 🤲 El Hambreado
+    deseadas_counts = {p: df_completo[f"PRIORIDAD_{p}"].sum() for p in nombres_papus}
+    hambreados = [p for p in nombres_papus if df_rank[df_rank['PAPU'] == p]['REPETIDAS'].values[0] == 0 and deseadas_counts[p] > 0]
+    if hambreados:
+        el_hambreado = max(hambreados, key=lambda x: deseadas_counts[x])
+        insignias[el_hambreado].append(("🤲", "El Hambreado: Cero repetidas, pero pide y pide doradas de a grapa."))
+        
+    # 8. 🐢 El Funcionario
+    hora_cdmx = datetime.utcnow() + timedelta(hours=-6)
+    if df_logs is not None and not df_logs.empty:
+        for p in nombres_papus:
+            logs_p = df_logs[df_logs['ACCION'].str.contains(p, na=False)]
+            if not logs_p.empty:
+                last_date_str = logs_p.iloc[0]['FECHA']
+                try:
+                    last_date = datetime.strptime(f"{last_date_str}/{hora_cdmx.year}", "%d/%m %H:%M/%Y")
+                    if (hora_cdmx - last_date).days >= 3:
+                        insignias[p].append(("🐢", "El Funcionario: Lleva más de 3 días sin chambear (registrar)."))
+                except: pass
+            else:
+                insignias[p].append(("🐢", "El Funcionario: Lleva más de 3 días sin chambear (registrar)."))
+    else:
+        for p in nombres_papus:
+            insignias[p].append(("🐢", "El Funcionario: Lleva más de 3 días sin chambear (registrar)."))
+
+    # 9. 🧂 El Salitre
+    salitre_ratio = {}
+    for p in nombres_papus:
+        pegadas = df_rank[df_rank['PAPU'] == p]['PEGADAS'].values[0]
         reps = df_rank[df_rank['PAPU'] == p]['REPETIDAS'].values[0]
         prog = float(df_rank[df_rank['PAPU'] == p]['PROGRESO'].values[0].replace('%',''))
-        if prog > 20 and reps < 3:
-            insignias[p].append(("💪🏼", "El Codo: Buen avance, pero no aporta nada al Mercado Nigger."))
-            
-    deseadas_counts = {p: df_completo[f"PRIORIDAD_{p}"].sum() for p in nombres_papus}
-    el_aferrado = max(deseadas_counts, key=deseadas_counts.get)
-    if deseadas_counts[el_aferrado] > 0:
-        insignias[el_aferrado].append(("🧽", "El Aferrado: El que tiene más estampas marcadas como deseadas."))
+        if prog < 50: # Solo aplica si vas a menos de la mitad
+            salitre_ratio[p] = reps / pegadas if pegadas > 0 else 0
+        else:
+            salitre_ratio[p] = 0
+    el_salitre = max(salitre_ratio, key=salitre_ratio.get)
+    if salitre_ratio[el_salitre] > 0.5: # Si su basura es más del 50% de sus pegadas
+        insignias[el_salitre].append(("🧂", "El Salitre: Saladísimo. Pésimo ratio, pura repetida y poco avance."))
 
-    el_fantasma = df_rank.iloc[-1]['PAPU']
-    insignias[el_fantasma].append(("👻", "Fantasmón: En calidad de desaparecido (último lugar)."))
+    # 10. 🥵 El Ya Merito
+    for p in nombres_papus:
+        prog = float(df_rank[df_rank['PAPU'] == p]['PROGRESO'].values[0].replace('%',''))
+        if 90 <= prog < 100:
+            insignias[p].append(("🥵", "El Ya Merito: Sudando frío, ya superó el 90% del álbum."))
 
-    for p, racha in st.session_state.racha_salada.items():
-        if racha >= 2:
-            insignias[p].append(("🤡", "Cliente Frecuente: Atrapado en el Muro de la Vergüenza."))
-            
     return insignias
 
 # --- POWER RANKING ---
@@ -190,7 +251,7 @@ for p in nombres_papus:
     rank_data.append({"PAPU": p, "PROGRESO": f"{porcentaje:.1f}%", "PEGADAS": pegadas, "REPETIDAS": int(repetidas), "PUNTOS": (pegadas * 2) + int(repetidas)})
 
 df_rank = pd.DataFrame(rank_data).sort_values(by="PUNTOS", ascending=False)
-dict_insignias = calcular_insignias(df_rank, df)
+dict_insignias = calcular_insignias(df_rank, df, st.session_state.df_logs)
 
 cols_rank = st.columns(len(nombres_papus))
 for i, row in enumerate(df_rank.itertuples()):
@@ -207,19 +268,22 @@ for i, row in enumerate(df_rank.itertuples()):
 
 # --- SIDEBAR & BITÁCORA GLOBAL ---
 with st.sidebar:
-    with st.expander("📖 Glosario de Insignias"):
+    with st.expander("📖 Glosario de Insignias Oficiales"):
         st.markdown("""
         👑 **Big Papu:** Líder del Ranking.  
-        🎩 **El Monopolio:** El que tiene más repetidas.  
-        🩸 **Donante Universal:** Sus repetidas ayudan a más papus.  
-        💪🏼 **El Codo:** Mucho progreso, poca repetida.  
-        🧽 **El Aferrado:** El que más doradas quiere.  
-        👻 **Fantasmón:** Último lugar.  
-        🤡 **Cliente Frecuente:** El que vive en el Muro.
+        🚂 **El Cruzazuleado:** Era el #1 y la pecheó.  
+        📦 **El de la Paca:** Tiene 4 o más repetidas de una misma.  
+        🤝 **El Coyote:** El rey del trueque, más tratos activos.  
+        🛍️ **El Fayuquero:** Registró más de 15 estampas de jalón.  
+        🤲 **El Hambreado:** Cero repetidas, pero exige doradas.  
+        🎯 **El Bendecido:** Le salieron 4 o más nuevas en un registro.  
+        🐢 **El Funcionario:** Lleva más de 3 días sin registrar nada.  
+        🧂 **El Salitre:** Saladísimo. Pura repetida y poco avance.  
+        🥵 **El Ya Merito:** Sudando frío, superó el 90%.  
         """)
     
     st.divider()
-    st.header("🕵️ Bitácora Global")
+    st.header("🕵️ Bitácora Global (CDMX)")
     if st.session_state.df_logs is not None and not st.session_state.df_logs.empty:
         for _, log in st.session_state.df_logs.iterrows():
             st.markdown(f"<div class='log-entry'><b>[{log['FECHA']}]</b> {log['ACCION']}</div>", unsafe_allow_html=True)
@@ -265,10 +329,16 @@ if seleccionadas:
         else:
             with st.spinner("Subiendo datos a la nube..."):
                 nuevas = 0
+                total_registradas = sum(cambios.values())
+                
                 for idx, suma in cambios.items():
                     if suma > 0:
                         if df.at[idx, usuario] == 0: nuevas += 1
                         df.at[idx, usuario] += suma
+                
+                # Asignación de insignias por eventos
+                if total_registradas > 15: st.session_state.insignias_eventos[usuario].add("Fayuquero")
+                if nuevas >= 4: st.session_state.insignias_eventos[usuario].add("Bendecido")
                 
                 st.session_state.racha_salada[usuario] = 0 if nuevas > 0 else st.session_state.racha_salada[usuario] + 1
                 
@@ -310,7 +380,7 @@ with st.expander("🗑️ Adios popó 💩 (Bajas externas)"):
         if "multi_bajas" not in st.session_state: st.session_state.multi_bajas = []
         baja = st.multiselect("¿Cuáles se fueron?💸", mis_reps, key="multi_bajas")
         if baja:
-            b_pend = {r: st.number_input(f"Cant {r}", min_value=1, key=f"d_{r}") for r in baja}
+            b_pend = {r: st.number_input(f"Cant {r}", min_value=1, max_value=int(df[df['ESTAMPA']==r][usuario].values[0]-1), key=f"d_{r}") for r in baja}
             if st.button("Confirmar baja"):
                 transaccion_baja = {"tipo": "baja", "user": usuario, "cambios": b_pend.copy()}
                 if st.session_state.ultima_transaccion == transaccion_baja:
