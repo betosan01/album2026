@@ -299,7 +299,7 @@ with st.sidebar:
             st.markdown(f"<div class='shame-card'>⚠️ <b>{p}</b> lleva {racha} registros de puras repetidas. 🤡</div>", unsafe_allow_html=True)
     if not salado: st.write("Todos traen suerte... por ahora.😶‍🌫️")
 
-# --- REGISTRO & INVENTARIO ---
+# --- REGISTRO & INVENTARIO (VERSIÓN CUADRÍCULA OPTIMIZADA) ---
 st.divider()
 st.subheader("📖 Registro de Sobres")
 usuario = st.selectbox("¿Quién eres papu?🧐", nombres_papus)
@@ -307,20 +307,56 @@ col_prio = f"PRIORIDAD_{usuario}"
 
 opciones = df['ESTAMPA'].tolist()
 
-if "multi_registro" not in st.session_state: st.session_state.multi_registro = []
-seleccionadas = st.multiselect("¿Cuáles te salieron perro?😯", opciones, key="multi_registro")
+# Buscador de texto libre en lugar del multiselect
+filtro_texto = st.text_input("🔍 Busca por código (Ej. MEX, ARG, FWC)...").upper()
 
-if seleccionadas:
-    st.write("### 📋 Panel de Control")
-    cols = st.columns(4)
+if "estampas_a_registrar" not in st.session_state: 
+    st.session_state.estampas_a_registrar = {}
+
+# Mostrar botones solo si hay texto en el buscador
+if filtro_texto:
+    opciones_filtradas = [est for est in opciones if filtro_texto in est]
+    
+    if opciones_filtradas:
+        st.write("👇 Dale clic a las que te salieron:")
+        cols_botones = st.columns(6)
+        
+        for i, est in enumerate(opciones_filtradas):
+            idx = df[df['ESTAMPA'] == est].index[0]
+            ya_la_tengo = df.at[idx, usuario] > 0
+            
+            with cols_botones[i % 6]:
+                # Usamos un checkbox con formato de botón
+                is_checked = st.session_state.estampas_a_registrar.get(est, 0) > 0
+                
+                # Alerta visual si es repetida
+                if ya_la_tengo:
+                    label = f"⚠️ {est}"
+                else:
+                    label = f"✅ {est}"
+                
+                seleccion = st.toggle(label, value=is_checked, key=f"tg_{est}")
+                
+                if seleccion:
+                    st.session_state.estampas_a_registrar[est] = 1 # Por defecto 1
+                elif est in st.session_state.estampas_a_registrar:
+                    del st.session_state.estampas_a_registrar[est]
+    else:
+        st.warning("No se encontró esa estampa. Revisa bien el código, papu.")
+
+# Mostrar panel de control solo si ya se seleccionó al menos una estampa (incluso si se borra el buscador)
+if st.session_state.estampas_a_registrar:
+    st.write("### 📋 Panel de Control (Tu Lote Actual)")
+    cols_control = st.columns(4)
     cambios = {}
-    for i, est in enumerate(seleccionadas):
+    
+    for i, (est, cantidad) in enumerate(st.session_state.estampas_a_registrar.items()):
         idx = df[df['ESTAMPA'] == est].index[0]
-        with cols[i % 4]:
+        with cols_control[i % 4]:
             with st.container(border=True):
                 st.markdown(f"<h4 style='text-align:center;'>{est}</h4>", unsafe_allow_html=True)
-                cambios[idx] = st.number_input("Cantidad", min_value=0, value=1, key=f"num_{est}")
-                
+                cambios[idx] = st.number_input("Cantidad", min_value=1, value=cantidad, key=f"num_{est}")
+
     if st.button("💾 Al toque pa, ya los puedes guardar", type="primary", use_container_width=True):
         transaccion_actual = {"user": usuario, "cambios": cambios.copy()}
         
@@ -347,7 +383,7 @@ if seleccionadas:
                     st.session_state.df_maestro = df
                     registrar_log_remoto(f"{usuario} registró {len(cambios)} estampas")
                     st.session_state.ultima_transaccion = transaccion_actual
-                    del st.session_state["multi_registro"]
+                    st.session_state.estampas_a_registrar = {} # Limpiamos el carrito
                     st.rerun()
                 except Exception as e:
                     st.error("🚨 Ocurrió un problema al guardar.")
