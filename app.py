@@ -50,7 +50,7 @@ def lanzar_fuegos(nombre, meta, color_hex):
             }}());
         </script>
         <div style="text-align: center; font-family: sans-serif; color: {'white' if is_rainbow else color_hex};">
-            <h2 style="font-size: 40px; margin: 0;">🎉 ¡{nombre} LLEGÓ AL {meta}%! 🎉</h2>
+            <h2 style="font-size: 40px; margin: 0;">🎉 ¡{nombre} LLEVA EL {meta}%! 🤯</h2>
         </div>
     """, height=120)
 
@@ -78,7 +78,7 @@ porcentaje_megazord = (estampas_squad / total_total) * 100
 
 st.markdown(f"""
     <div class="megazord-card">
-        <h2 style='margin:0;'>🤖 ESTATUS DEL MEGAZORD (OPERATIVO SQUAD)</h2>
+        <h2 style='margin:0;'>🤖 MEGAZORD (SQUAD)</h2>
         <p style='font-size:1.2em; margin:5px;'>Llevan el <b>{porcentaje_megazord:.1f}%</b> del Álbum Maestro</p>
     </div>
 """, unsafe_allow_html=True)
@@ -88,9 +88,9 @@ st.progress(porcentaje_megazord / 100)
 def calcular_insignias(df_rank, df_completo):
     insignias = {p: [] for p in nombres_papus}
     
-    # 👑 El Patrón (Primero en el Ranking)
+    # 👑Big Papu (Primero en el Ranking)
     el_patron = df_rank.iloc[0]['PAPU']
-    insignias[el_patron].append(("👑", "El Patrón: Líder actual del Power Ranking."))
+    insignias[el_patron].append(("👑", "Big Papu: Líder actual del Power Ranking."))
     
     # 🎩 El Monopolio (Más repetidas totales)
     el_monopolio = df_rank.sort_values(by="REPETIDAS", ascending=False).iloc[0]['PAPU']
@@ -105,14 +105,14 @@ def calcular_insignias(df_rank, df_completo):
         ayuda_potencial[p] = sirven
     el_donante = max(ayuda_potencial, key=ayuda_potencial.get)
     if ayuda_potencial[el_donante] > 0:
-        insignias[el_donante].append(("🩸", "Donante Universal: Sus repetidas son las que más necesita el squad."))
+        insignias[el_donante].append(("🩸", "Donante Universal: El que más dona estapas al squad."))
     
-    # 🛑 El Codo (Buen progreso pero no suelta repetidas)
+    # 💪🏼 El Codo (Buen progreso pero no suelta repetidas)
     for p in nombres_papus:
         reps = df_rank[df_rank['PAPU'] == p]['REPETIDAS'].values[0]
         prog = float(df_rank[df_rank['PAPU'] == p]['PROGRESO'].values[0].replace('%',''))
         if prog > 20 and reps < 3:
-            insignias[p].append(("🛑", "El Codo: Tiene buen avance pero no aporta nada al Mercado Nigger."))
+            insignias[p].append(("💪🏼", "El Codo: Buen avance, pero no aporta nada al Mercado Nigger."))
             
     # 🧽 El Aferrado (Más doradas marcadas)
     deseadas_counts = {p: df_completo[f"PRIORIDAD_{p}"].sum() for p in nombres_papus}
@@ -120,9 +120,9 @@ def calcular_insignias(df_rank, df_completo):
     if deseadas_counts[el_aferrado] > 0:
         insignias[el_aferrado].append(("🧽", "El Aferrado: El que tiene más estampas marcadas como deseadas."))
 
-    # 👻 El Agente Fantasma (Último lugar)
+    # 👻 Fantasmón (Último lugar)
     el_fantasma = df_rank.iloc[-1]['PAPU']
-    insignias[el_fantasma].append(("👻", "Agente Fantasma: En calidad de desaparecido (último lugar)."))
+    insignias[el_fantasma].append(("👻", "Fantasmón: En calidad de desaparecido (último lugar)."))
 
     # 🤡 El Cliente Frecuente (Muro de la vergüenza activo)
     for p, racha in st.session_state.racha_salada.items():
@@ -167,12 +167,12 @@ for i, row in enumerate(df_rank.itertuples()):
 with st.sidebar:
     with st.expander("📖 Glosario de Insignias"):
         st.markdown("""
-        👑 **El Patrón:** Líder del Ranking.  
+        👑 **Big Papu:** Líder del Ranking.  
         🎩 **El Monopolio:** El que tiene más repetidas.  
         🩸 **Donante Universal:** Sus repetidas ayudan a más papus.  
-        🛑 **El Codo:** Mucho progreso, poca repetida.  
+        💪🏼 **El Codo:** Mucho progreso, poca repetida.  
         🧽 **El Aferrado:** El que más doradas quiere.  
-        👻 **Agente Fantasma:** Último lugar.  
+        👻 **Fantasmón:** Último lugar.  
         🤡 **Cliente Frecuente:** El que vive en el Muro.
         """)
     
@@ -188,7 +188,7 @@ with st.sidebar:
         if racha >= 2:
             salado = True
             st.markdown(f"<div class='shame-card'>⚠️ <b>{p}</b> lleva {racha} registros de puras repetidas. 🤡</div>", unsafe_allow_html=True)
-    if not salado: st.write("Todos traen suerte... por ahora.😶‍F")
+    if not salado: st.write("Todos traen suerte... por ahora.😶‍🌫️")
 
 # --- REGISTRO & INVENTARIO ---
 st.divider()
@@ -238,7 +238,7 @@ else: st.info("Sin repetidas registradas. ¡Suerte! 🍀")
 # --- TRATOS Y MERCADO ---
 st.divider()
 st.subheader("💱 Mercado Nigger & Tratos Pro🤯")
-t1, t2, t3 = st.tabs(["Disponibles", "🤝 Un precio justo🦑", "🔄 Tríos🥵"])
+t1, t2, t3 = st.tabs(["Disponibles🔁", "Un precio justo🦑", "Tríos🥵"])
 with t1:
     me_faltan = df[df[usuario] == 0]
     for i, (_, row) in enumerate(me_faltan.iterrows()):
@@ -272,9 +272,9 @@ if f_n: df_v = df_v[(df_v[nombres_papus] == 0).all(axis=1)]
 if "p_a" not in st.session_state: st.session_state.p_a = 0
 cp1, cp2, cp3 = st.columns([1,2,1])
 with cp1: 
-    if st.button("⬅️ Atrás") and st.session_state.p_a > 0: st.session_state.p_a -= 1; st.rerun()
+    if st.button("⬅️ Va pa´trás") and st.session_state.p_a > 0: st.session_state.p_a -= 1; st.rerun()
 with cp3: 
-    if st.button("Siguiente ➡️") and st.session_state.p_a < (len(df_v)-1)//30: st.session_state.p_a += 1; st.rerun()
+    if st.button("Va pa´lante ➡️") and st.session_state.p_a < (len(df_v)-1)//30: st.session_state.p_a += 1; st.rerun()
 
 st.markdown("<div class='scan-container'>", unsafe_allow_html=True)
 chunk = df_v.iloc[st.session_state.p_a*30 : (st.session_state.p_a+1)*30]
