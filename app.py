@@ -93,7 +93,6 @@ metas_colores = {10: "#cd7f32", 25: "#c0c0c0", 50: "#007bff", 75: "#9b59b6", 90:
 # --- INICIALIZACIÓN DE ESTADOS ---
 if "log_actividad" not in st.session_state: st.session_state.log_actividad = []
 if "metas_alcanzadas" not in st.session_state: st.session_state.metas_alcanzadas = {p: [] for p in nombres_papus}
-# Idea 7: Contador de racha salada (Muro de la Vergüenza)
 if "racha_salada" not in st.session_state: st.session_state.racha_salada = {p: 0 for p in nombres_papus}
 
 def agregar_al_log(accion):
@@ -135,7 +134,6 @@ with st.sidebar:
         st.markdown(f"<div class='log-entry' style='color:{color};'>• {log}</div>", unsafe_allow_html=True)
     
     st.divider()
-    # Idea 7: Muro de la Vergüenza
     st.header("💀 Muro de la Vergüenza")
     alguien_salado = False
     for p, racha in st.session_state.racha_salada.items():
@@ -166,24 +164,6 @@ st.subheader("📖 Registro de Sobres")
 usuario = st.selectbox("¿Quién eres papu?🧐", nombres_papus)
 col_prioridad_mia = f"PRIORIDAD_{usuario}"
 
-# Sección para ELIMINAR repetidas (Perdidas o externas)
-with st.expander("🗑️ Bajas del Inventario (Regaladas fuera)"):
-    mis_reps = df[df[usuario] > 1]['ESTAMPA'].tolist()
-    if mis_reps:
-        reps_baja = st.multiselect("¿Cuáles se fueron?💸", mis_reps)
-        if reps_baja:
-            bajas_pendientes = {}
-            for r in reps_baja:
-                bajas_pendientes[r] = st.number_input(f"Cuántas de {r}", min_value=1, max_value=int(df[df['ESTAMPA']==r][usuario].values[0]-1), key=f"del_{r}")
-            if st.button("Adios popó 💩"):
-                for est, cant in bajas_pendientes.items():
-                    df.at[df[df['ESTAMPA'] == est].index[0], usuario] -= cant
-                conn.update(spreadsheet=url_del_sheet, data=df)
-                agregar_al_log(f"⚠️ {usuario} eliminó {sum(bajas_pendientes.values())} repetidas del sistema")
-                st.rerun()
-    else:
-        st.write("No se da lo que no se tiene papu.🤨")
-
 opciones = df['ESTAMPA'].tolist()
 seleccionadas = st.multiselect("¿Cuáles te salieron perro?😯", opciones)
 
@@ -205,7 +185,6 @@ if seleccionadas:
                 if df.at[idx_cambio, usuario] == 0: nuevas_detectadas += 1
                 df.at[idx_cambio, usuario] += suma
         
-        # Idea 7: Lógica del Muro de la Vergüenza
         if nuevas_detectadas == 0:
             st.session_state.racha_salada[usuario] += 1
             if st.session_state.racha_salada[usuario] >= 2:
@@ -217,6 +196,67 @@ if seleccionadas:
         agregar_al_log(f"{usuario} registró {len(cambios_pendientes)} estampas")
         st.success("¡Sincronizado!🔥")
         st.rerun()
+
+# --- NUEVO: INVENTARIO DE REPETIDAS EDITABLE ---
+st.divider()
+st.subheader(f"📋 Mi Inventario de Repetidas ({usuario})")
+st.write("Aquí solo salen las que tienes de más. Edítalas si registraste mal.")
+
+df_reps = df[df[usuario] > 1][['ESTAMPA', usuario]].copy()
+
+if not df_reps.empty:
+    # Usamos st.data_editor para que sea una tabla interactiva y rápida
+    # Solo permitimos editar la columna del usuario
+    df_reps_edited = st.data_editor(
+        df_reps,
+        column_config={
+            usuario: st.column_config.NumberColumn(
+                f"Cantidad Total ({usuario})",
+                help="1 es pegada, 2+ son repetidas",
+                min_value=1, # No dejamos bajar de 1 para no borrar la que ya pegó
+                step=1,
+            ),
+            "ESTAMPA": st.column_config.Column(disabled=True)
+        },
+        hide_index=True,
+        use_container_width=True,
+        key=f"editor_{usuario}"
+    )
+
+    if st.button("🔄 Actualizar Cantidades 🛠️"):
+        # Detectar qué filas cambiaron
+        for i, row in df_reps_edited.iterrows():
+            orig_val = df_reps.iloc[i][usuario]
+            new_val = row[usuario]
+            if orig_val != new_val:
+                idx = df[df['ESTAMPA'] == row['ESTAMPA']].index[0]
+                df.at[idx, usuario] = new_val
+        
+        conn.update(spreadsheet=url_del_sheet, data=df)
+        agregar_al_log(f"🕵️ {usuario} ajustó su inventario de repetidas")
+        st.success("¡Cantidades corregidas! 🔎")
+        st.rerun()
+else:
+    st.info("No tienes repetidas registradas todavía. ¡Suerte con los sobres! 🍀")
+
+
+# --- BAJAS DEL INVENTARIO ---
+with st.expander("🗑️ Bajas del Inventario (Regaladas fuera)"):
+    mis_reps_list = df[df[usuario] > 1]['ESTAMPA'].tolist()
+    if mis_reps_list:
+        reps_baja = st.multiselect("¿Cuáles se fueron?💸", mis_reps_list)
+        if reps_baja:
+            bajas_pendientes = {}
+            for r in reps_baja:
+                bajas_pendientes[r] = st.number_input(f"Cuántas de {r}", min_value=1, max_value=int(df[df['ESTAMPA']==r][usuario].values[0]-1), key=f"del_{r}")
+            if st.button("Adios popó 💩"):
+                for est, cant in bajas_pendientes.items():
+                    df.at[df[df['ESTAMPA'] == est].index[0], usuario] -= cant
+                conn.update(spreadsheet=url_del_sheet, data=df)
+                agregar_al_log(f"⚠️ {usuario} eliminó {sum(bajas_pendientes.values())} repetidas del sistema")
+                st.rerun()
+    else:
+        st.write("No se da lo que no se tiene papu.🤨")
 
 # --- MERCADO NIGGER ---
 st.divider()
@@ -247,21 +287,15 @@ with tab2:
                 st.write(f"Tú le das: `{', '.join(yo_doy[:3])}` | Él te da: `{', '.join(el_da[:3])}`")
 
 with tab3:
-    # Idea 2: Intercambios Triangulares (A -> B -> C -> A)
     triangulos = []
     otros = [p for p in nombres_papus if p != usuario]
     for b in otros:
         for c in [p for p in otros if p != b]:
-            # Yo tengo lo que B quiere
             yo_a_b = df[(df[usuario] > 1) & (df[b] == 0)]['ESTAMPA'].tolist()
-            # B tiene lo que C quiere
             b_a_c = df[(df[b] > 1) & (df[c] == 0)]['ESTAMPA'].tolist()
-            # C tiene lo que YO quiero
             c_a_yo = df[(df[c] > 1) & (df[usuario] == 0)]['ESTAMPA'].tolist()
-            
             if yo_a_b and b_a_c and c_a_yo:
                 triangulos.append(f"🔄 **¡TENEMOS TRÍOO!🥵** Tú le das a **{b}**, {b} le da a **{c}**, y **{c}** te da a ti.")
-    
     if triangulos:
         for t in triangulos: st.info(t)
     else:
@@ -270,7 +304,6 @@ with tab3:
 # --- ÁLBUM VIRTUAL PAGINADO ---
 st.divider()
 st.subheader(f"📔 Álbum Virtual ({usuario})")
-
 f1, f2, f3 = st.columns(3)
 with f1: f_faltantes = st.checkbox("Las que me faltan🙁")
 with f2: f_deseadas = st.checkbox("Las deseadas🤩")
@@ -285,7 +318,6 @@ st.markdown("<div class='scan-container'>", unsafe_allow_html=True)
 ITEMS_PAG = 30
 total_p = (len(df_d) - 1) // ITEMS_PAG + 1
 if "album_page" not in st.session_state: st.session_state.album_page = 0
-
 cp1, cp2, cp3 = st.columns([1,2,1])
 with cp1: 
     if st.button("⬅️ Va pa´tras") and st.session_state.album_page > 0:
@@ -299,7 +331,6 @@ with cp3:
 
 chunk = df_d.iloc[st.session_state.album_page*ITEMS_PAG : (st.session_state.album_page+1)*ITEMS_PAG]
 cols_alb = st.columns(6)
-
 for i, (_, row) in enumerate(chunk.iterrows()):
     est, act, prio = row['ESTAMPA'], row[usuario], row[col_prioridad_mia]
     otros_f = [p for p in nombres_papus if p != usuario if row[p] == 0]
