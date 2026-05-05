@@ -5,57 +5,31 @@ import numpy as np
 import streamlit.components.v1 as components
 
 # Configuración de pantalla ancha
-st.set_page_config(page_title="Dashboard Mundial 2026", layout="wide")
+st.set_page_config(page_title="Dashboard Mundial 2026 - Megazord Edition", layout="wide")
 
 # --- ESTILOS CSS (ANIMACIONES + ESTILO BASE) ---
 st.markdown("""
     <style>
-    /* Efecto Brillante para Doradas */
-    @keyframes shiny {
-        0% { background-position: -200%; }
-        100% { background-position: 200%; }
-    }
-    .st-gold {
-        background: linear-gradient(110deg, #ffd700 45%, #fff9db 50%, #ffd700 55%);
-        background-size: 200% 100%;
-        animation: shiny 3s infinite linear;
-        color: black !important;
-        border: 2px solid #daa520 !important;
-    }
+    /* Animaciones de siempre */
+    @keyframes shiny { 0% { background-position: -200%; } 100% { background-position: 200%; } }
+    .st-gold { background: linear-gradient(110deg, #ffd700 45%, #fff9db 50%, #ffd700 55%); background-size: 200% 100%; animation: shiny 3s infinite linear; color: black !important; border: 2px solid #daa520 !important; }
+    
+    @keyframes pulse-blue { 0% { box-shadow: 0 0 0 0 rgba(0, 123, 255, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(0, 123, 255, 0); } 100% { box-shadow: 0 0 0 0 rgba(0, 123, 255, 0); } }
+    .st-blue { animation: pulse-blue 2s infinite; background-color: #007bff !important; border: 2px solid #0056b3 !important; }
 
-    /* Pulso Radar para Azules (Match) */
-    @keyframes pulse-blue {
-        0% { box-shadow: 0 0 0 0 rgba(0, 123, 255, 0.7); }
-        70% { box-shadow: 0 0 0 10px rgba(0, 123, 255, 0); }
-        100% { box-shadow: 0 0 0 0 rgba(0, 123, 255, 0); }
-    }
-    .st-blue {
-        animation: pulse-blue 2s infinite;
-        background-color: #007bff !important;
-        border: 2px solid #0056b3 !important;
-    }
-
-    /* Línea de Escaneo de Evidencia */
-    @keyframes scanline {
-        0% { top: 0%; }
-        100% { top: 100%; }
-    }
+    @keyframes scanline { 0% { top: 0%; } 100% { top: 100%; } }
     .scan-container { position: relative; overflow: hidden; }
-    .scan-container::after {
-        content: ""; position: absolute; width: 100%; height: 2px;
-        background: rgba(0, 255, 255, 0.4); top: 0; left: 0;
-        animation: scanline 5s linear infinite; z-index: 10; pointer-events: none;
-    }
+    .scan-container::after { content: ""; position: absolute; width: 100%; height: 2px; background: rgba(0, 255, 255, 0.4); top: 0; left: 0; animation: scanline 5s linear infinite; z-index: 10; pointer-events: none; }
 
+    /* Estilos de tarjetas y Megazord */
+    .megazord-card { background: linear-gradient(90deg, #1e3a8a, #3b82f6); padding: 20px; border-radius: 15px; border: 2px solid #60a5fa; margin-bottom: 25px; text-align: center; color: white; }
+    .stat-card { background-color: #262730; padding: 15px; border-radius: 10px; border-top: 3px solid #007bff; text-align: center; }
+    .insignia-span { font-size: 1.5em; cursor: help; margin-left: 5px; }
     .legend-box { padding: 15px; border-radius: 8px; border: 1px solid #444; margin-bottom: 25px; display: flex; gap: 25px; flex-wrap: wrap; background-color: #1e1e1e; }
-    .legend-item { display: flex; align-items: center; gap: 10px; font-size: 0.95em; color: #fafafa; }
-    .circle { height: 18px; width: 18px; border-radius: 50%; display: inline-block; border: 1px solid #777; }
     .sticker-box { padding: 15px 5px; border-radius: 8px; text-align: center; font-weight: bold; margin-bottom: 10px; font-size: 1em; transition: transform 0.3s; }
     .sticker-box:hover { transform: scale(1.1); }
     .st-gray { background-color: #2b2b2b; color: #666; border: 1px dashed #444; }
     .st-green { background-color: #28a745; color: white; border: 1px solid #1e7e34; }
-    .log-entry { font-size: 0.85em; color: #888; border-bottom: 1px solid #333; padding: 5px 0; }
-    .stat-card { background-color: #262730; padding: 15px; border-radius: 10px; border-top: 3px solid #007bff; }
     .shame-card { background-color: #4a1a1a; padding: 10px; border-radius: 5px; border: 1px solid #ff4b4b; color: #ff9b9b; font-size: 0.9em; }
     </style>
     """, unsafe_allow_html=True)
@@ -97,36 +71,115 @@ def agregar_al_log(accion):
     st.session_state.log_actividad.insert(0, accion)
     if len(st.session_state.log_actividad) > 10: st.session_state.log_actividad.pop()
 
-# --- POWER RANKING ---
-st.title("🏆 Control Albúm Papus")
-st.subheader("📊 Power Ranking del Squad")
+# --- CÁLCULO DEL MEGAZORD ---
 total_total = len(df)
-rank_data = []
+estampas_squad = df[nombres_papus].any(axis=1).sum()
+porcentaje_megazord = (estampas_squad / total_total) * 100
 
+st.markdown(f"""
+    <div class="megazord-card">
+        <h2 style='margin:0;'>🤖 ESTATUS DEL MEGAZORD (OPERATIVO SQUAD)</h2>
+        <p style='font-size:1.2em; margin:5px;'>Llevan el <b>{porcentaje_megazord:.1f}%</b> del Álbum Maestro</p>
+    </div>
+""", unsafe_allow_html=True)
+st.progress(porcentaje_megazord / 100)
+
+# --- LÓGICA DE INSIGNIAS ---
+def calcular_insignias(df_rank, df_completo):
+    insignias = {p: [] for p in nombres_papus}
+    
+    # 👑 El Patrón (Primero en el Ranking)
+    el_patron = df_rank.iloc[0]['PAPU']
+    insignias[el_patron].append(("👑", "El Patrón: Líder actual del Power Ranking."))
+    
+    # 🎩 El Monopolio (Más repetidas totales)
+    el_monopolio = df_rank.sort_values(by="REPETIDAS", ascending=False).iloc[0]['PAPU']
+    insignias[el_monopolio].append(("🎩", "El Monopolio: El que más mercancía repetida tiene."))
+    
+    # 🩸 El Donante Universal (El que más ayuda a los otros)
+    ayuda_potencial = {}
+    for p in nombres_papus:
+        otros = [o for o in nombres_papus if o != p]
+        # Repetidas de P que le faltan a al menos uno de los otros
+        sirven = df_completo[(df_completo[p] > 1) & (df_completo[otros].eq(0).any(axis=1))].shape[0]
+        ayuda_potencial[p] = sirven
+    el_donante = max(ayuda_potencial, key=ayuda_potencial.get)
+    if ayuda_potencial[el_donante] > 0:
+        insignias[el_donante].append(("🩸", "Donante Universal: Sus repetidas son las que más necesita el squad."))
+    
+    # 🛑 El Codo (Buen progreso pero no suelta repetidas)
+    for p in nombres_papus:
+        reps = df_rank[df_rank['PAPU'] == p]['REPETIDAS'].values[0]
+        prog = float(df_rank[df_rank['PAPU'] == p]['PROGRESO'].values[0].replace('%',''))
+        if prog > 20 and reps < 3:
+            insignias[p].append(("🛑", "El Codo: Tiene buen avance pero no aporta nada al Mercado Nigger."))
+            
+    # 🧽 El Aferrado (Más doradas marcadas)
+    deseadas_counts = {p: df_completo[f"PRIORIDAD_{p}"].sum() for p in nombres_papus}
+    el_aferrado = max(deseadas_counts, key=deseadas_counts.get)
+    if deseadas_counts[el_aferrado] > 0:
+        insignias[el_aferrado].append(("🧽", "El Aferrado: El que tiene más estampas marcadas como deseadas."))
+
+    # 👻 El Agente Fantasma (Último lugar)
+    el_fantasma = df_rank.iloc[-1]['PAPU']
+    insignias[el_fantasma].append(("👻", "Agente Fantasma: En calidad de desaparecido (último lugar)."))
+
+    # 🤡 El Cliente Frecuente (Muro de la vergüenza activo)
+    for p, racha in st.session_state.racha_salada.items():
+        if racha >= 2:
+            insignias[p].append(("🤡", "Cliente Frecuente: Atrapado en el Muro de la Vergüenza."))
+            
+    return insignias
+
+# --- POWER RANKING ---
+st.subheader("📊 Power Ranking del Squad")
+rank_data = []
 for p in nombres_papus:
     pegadas = len(df[df[p] > 0])
     porcentaje = (pegadas / total_total) * 100
     repetidas = df[df[p] > 1][p].sum() - len(df[df[p] > 1])
+    
     for m, color in metas_colores.items():
         if porcentaje >= m and m not in st.session_state.metas_alcanzadas[p]:
             lanzar_fuegos(p, m, color if m < 100 else "#ffffff")
             st.session_state.metas_alcanzadas[p].append(m)
-            agregar_al_log(f"🔥 {p} SUBIÓ DE NIVEL: {m}% ALCANZADO")
+            agregar_al_log(f"🔥 {p} SUBIÓ DE NIVEL: {m}%")
+
     rank_data.append({"PAPU": p, "PROGRESO": f"{porcentaje:.1f}%", "PEGADAS": pegadas, "REPETIDAS": int(repetidas), "PUNTOS": (pegadas * 2) + int(repetidas)})
 
 df_rank = pd.DataFrame(rank_data).sort_values(by="PUNTOS", ascending=False)
+dict_insignias = calcular_insignias(df_rank, df)
+
 cols_rank = st.columns(len(nombres_papus))
 for i, row in enumerate(df_rank.itertuples()):
     with cols_rank[i]:
-        st.markdown(f"""<div class="stat-card"><h3 style='margin:0; color:#007bff;'>#{i+1} {row.PAPU}</h3><p style='margin:0; font-size:1.2em;'><b>{row.PROGRESO}</b></p><p style='margin:0; font-size:0.8em; color:#888;'>Pegadas: {row.PEGADAS} | Reps: {row.REPETIDAS}</p></div>""", unsafe_allow_html=True)
+        mis_insig = "".join([f'<span title="{desc}" class="insignia-span">{icon}</span>' for icon, desc in dict_insignias[row.PAPU]])
+        st.markdown(f"""
+            <div class="stat-card">
+                <h3 style='margin:0; color:#007bff;'>#{i+1} {row.PAPU}</h3>
+                <div style='margin:10px 0;'>{mis_insig}</div>
+                <p style='margin:0; font-size:1.2em;'><b>{row.PROGRESO}</b></p>
+                <p style='margin:0; font-size:0.8em; color:#888;'>Pegadas: {row.PEGADAS} | Reps: {row.REPETIDAS}</p>
+            </div>
+        """, unsafe_allow_html=True)
 
-# --- SIDEBAR ---
+# --- SIDEBAR & GLOSARIO ---
 with st.sidebar:
+    with st.expander("📖 Glosario de Insignias"):
+        st.markdown("""
+        👑 **El Patrón:** Líder del Ranking.  
+        🎩 **El Monopolio:** El que tiene más repetidas.  
+        🩸 **Donante Universal:** Sus repetidas ayudan a más papus.  
+        🛑 **El Codo:** Mucho progreso, poca repetida.  
+        🧽 **El Aferrado:** El que más doradas quiere.  
+        👻 **Agente Fantasma:** Último lugar.  
+        🤡 **Cliente Frecuente:** El que vive en el Muro.
+        """)
+    
+    st.divider()
     st.header("🕵️ Bitácora de Evidencias")
-    if not st.session_state.log_actividad: st.write("Nadie le ha movido pa🕴🏼")
     for log in st.session_state.log_actividad:
-        color = "#ffd700" if "NIVEL" in log else "#888"
-        st.markdown(f"<div class='log-entry' style='color:{color};'>• {log}</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='log-entry'>• {log}</div>", unsafe_allow_html=True)
     
     st.divider()
     st.header("💀 Muro de la Vergüenza")
@@ -134,22 +187,12 @@ with st.sidebar:
     for p, racha in st.session_state.racha_salada.items():
         if racha >= 2:
             salado = True
-            st.markdown(f"""<div class='shame-card'>⚠️ <b>{p}</b> lleva {racha} registros de puras repetidas. ¡Ta´ saladísimo! 🤡</div>""", unsafe_allow_html=True)
-    if not salado: st.write("Todos traen suerte... por ahora.😶‍🌫️")
+            st.markdown(f"<div class='shame-card'>⚠️ <b>{p}</b> lleva {racha} registros de puras repetidas. 🤡</div>", unsafe_allow_html=True)
+    if not salado: st.write("Todos traen suerte... por ahora.😶‍F")
 
-    st.divider()
-    st.header("La Triste Realidad🤡")
-    usuario_stats = st.selectbox("Analizar a:", nombres_papus, key="stats_user")
-    falt = total_total - len(df[df[usuario_stats] > 0])
-    prob_n = 1 - (((total_total - falt) / total_total) ** 7)
-    sob_est = (total_total * np.log(total_total) + 0.577 * total_total) / 7
-    st.write(f"**Te faltan:** {falt} estampas.🫡")
-    st.write(f"**Chances de nueva🥸:** {prob_n*100:.1f}%")
-    st.write(f"**Sobres pa' terminar💦** {int(max(0, sob_est - ((total_total - falt) / 7)))}")
-
-# --- REGISTRO ---
+# --- REGISTRO & INVENTARIO ---
 st.divider()
-st.subheader("📖 Registro de Sobres")
+st.subheader("📖 Operativo: Registro de Sobres")
 usuario = st.selectbox("¿Quién eres papu?🧐", nombres_papus)
 col_prio = f"PRIORIDAD_{usuario}"
 
@@ -177,7 +220,7 @@ if seleccionadas:
         agregar_al_log(f"{usuario} registró {len(cambios)} estampas")
         st.rerun()
 
-# --- INVENTARIO DE REPETIDAS (CORREGIDO) ---
+# --- INVENTARIO DE REPETIDAS ---
 st.divider()
 st.subheader(f"📋 Mi Inventario de Repetidas ({usuario})")
 df_reps = df[df[usuario] > 1][['ESTAMPA', usuario]].copy()
@@ -185,27 +228,14 @@ if not df_reps.empty:
     df_reps_edited = st.data_editor(df_reps, column_config={usuario: st.column_config.NumberColumn("Total", min_value=1), "ESTAMPA": st.column_config.Column(disabled=True)}, hide_index=True, use_container_width=True, key=f"ed_{usuario}")
     if st.button("🔄 Actualizar Cantidades 🛠️"):
         for _, row in df_reps_edited.iterrows():
-            est_nombre = row['ESTAMPA']
-            idx_real = df[df['ESTAMPA'] == est_nombre].index[0]
+            idx_real = df[df['ESTAMPA'] == row['ESTAMPA']].index[0]
             df.at[idx_real, usuario] = row[usuario]
         conn.update(spreadsheet=url_del_sheet, data=df)
-        agregar_al_log(f"🕵️ {usuario} ajustó sus repetidas")
+        agregar_al_log(f"🕵️ {usuario} ajustó su inventario")
         st.rerun()
-else: st.info("Sin repetidas todavía. 🍀")
+else: st.info("Sin repetidas registradas. ¡Suerte! 🍀")
 
-# --- BAJAS Y TRATOS ---
-with st.expander("🗑️ Adios popó 💩 (Bajas externas)"):
-    mis_reps = df[df[usuario] > 1]['ESTAMPA'].tolist()
-    if mis_reps:
-        baja = st.multiselect("¿Cuáles se fueron?💸", mis_reps)
-        if baja:
-            b_pend = {r: st.number_input(f"Cant {r}", min_value=1, max_value=int(df[df['ESTAMPA']==r][usuario].values[0]-1), key=f"d_{r}") for r in baja}
-            if st.button("Confirmar baja"):
-                for e, c in b_pend.items(): df.at[df[df['ESTAMPA'] == e].index[0], usuario] -= c
-                conn.update(spreadsheet=url_del_sheet, data=df)
-                agregar_al_log(f"⚠️ {usuario} eliminó repetidas")
-                st.rerun()
-
+# --- TRATOS Y MERCADO ---
 st.divider()
 st.subheader("💱 Mercado Nigger & Tratos Pro🤯")
 t1, t2, t3 = st.tabs(["Disponibles", "🤝 Un precio justo🦑", "🔄 Tríos🥵"])
@@ -239,45 +269,38 @@ if f_f: df_v = df_v[df_v[usuario] == 0]
 if f_d: df_v = df_v[df_v[f"PRIORIDAD_{usuario}"] > 0]
 if f_n: df_v = df_v[(df_v[nombres_papus] == 0).all(axis=1)]
 
-st.markdown("<div class='scan-container'>", unsafe_allow_html=True)
 if "p_a" not in st.session_state: st.session_state.p_a = 0
 cp1, cp2, cp3 = st.columns([1,2,1])
 with cp1: 
-    if st.button("⬅️ Va pa´tras") and st.session_state.p_a > 0: st.session_state.p_a -= 1; st.rerun()
+    if st.button("⬅️ Atrás") and st.session_state.p_a > 0: st.session_state.p_a -= 1; st.rerun()
 with cp3: 
-    if st.button("Va pa´lante ➡️") and st.session_state.p_a < (len(df_v)-1)//30: st.session_state.p_a += 1; st.rerun()
-c_v = df_v.iloc[st.session_state.p_a*30 : (st.session_state.p_a+1)*30]
+    if st.button("Siguiente ➡️") and st.session_state.p_a < (len(df_v)-1)//30: st.session_state.p_a += 1; st.rerun()
+
+st.markdown("<div class='scan-container'>", unsafe_allow_html=True)
+chunk = df_v.iloc[st.session_state.p_a*30 : (st.session_state.p_a+1)*30]
 cols_a = st.columns(6)
-for i, (_, r) in enumerate(c_v.iterrows()):
+for i, (_, r) in enumerate(chunk.iterrows()):
     act, prio = r[usuario], r[f"PRIORIDAD_{usuario}"]
     otros_f = [p for p in nombres_papus if p != usuario if r[p] == 0]
     css = "st-blue" if act > 1 and otros_f else "st-green" if act >= 1 else "st-gold" if prio > 0 else "st-gray"
     with cols_a[i % 6]: st.markdown(f"<div class='sticker-box {css}'>{r['ESTAMPA']}</div>", unsafe_allow_html=True)
 st.markdown("</div>", unsafe_allow_html=True)
 
-# --- DORADAS (CORREGIDO) ---
+# --- DORADAS ---
 st.divider()
 st.subheader("⭐ TUS MÁS DESEADAS")
 cg1, cg2 = st.columns(2)
-
-# Columna 1: Agregar a Doradas
 with cg1:
     no_p = df[(df[f"PRIORIDAD_{usuario}"] == 0) & (df[usuario] == 0)]['ESTAMPA'].tolist()
     if no_p:
         p_add = st.selectbox("Marcar como Dorada:", no_p, key="add_g")
         if st.button("✨ LA NECESITOOOOOOO🧽"):
             df.at[df[df['ESTAMPA'] == p_add].index[0], f"PRIORIDAD_{usuario}"] = 1
-            conn.update(spreadsheet=url_del_sheet, data=df)
-            agregar_al_log(f"{usuario} marcó {p_add} como dorada")
-            st.rerun()
-
-# Columna 2: Quitar de Doradas
+            conn.update(spreadsheet=url_del_sheet, data=df); st.rerun()
 with cg2:
     si_p = df[df[f"PRIORIDAD_{usuario}"] > 0]['ESTAMPA'].tolist()
     if si_p:
         p_rem = st.selectbox("Quitar de Doradas:", si_p, key="rem_g")
         if st.button("❌ Ya no va"):
             df.at[df[df['ESTAMPA'] == p_rem].index[0], f"PRIORIDAD_{usuario}"] = 0
-            conn.update(spreadsheet=url_del_sheet, data=df)
-            agregar_al_log(f"{usuario} quitó {p_rem} de sus doradas")
-            st.rerun()
+            conn.update(spreadsheet=url_del_sheet, data=df); st.rerun()
