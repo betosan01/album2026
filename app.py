@@ -76,10 +76,12 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 
 def cargar_datos_desde_google():
     try:
+        # Cargar Base de Datos Principal (SHEET1)
         temp_df = conn.read(spreadsheet=url_del_sheet, worksheet="SHEET1", ttl=0)
         temp_df.columns = [str(c).strip().upper() for c in temp_df.columns]
         st.session_state.df_maestro = temp_df
         
+        # Cargar Bitácora Persistente (LOGS)
         try:
             temp_logs = conn.read(spreadsheet=url_del_sheet, worksheet="LOGS", ttl=0)
             st.session_state.df_logs = temp_logs
@@ -128,15 +130,21 @@ if st.sidebar.button("🔄 Sincronizar Datos con la Nube", use_container_width=T
             st.sidebar.success("¡Información al tiro!")
             st.rerun()
 
-# --- CÁLCULO DEL MEGAZORD ---
+# --- CÁLCULO DEL MEGAZORD Y REPETIDAS TOTALES ---
 total_total = len(df)
 estampas_squad = df[nombres_papus].any(axis=1).sum()
 porcentaje_megazord = (estampas_squad / total_total) * 100
+
+# APARTADO NUEVO: Cálculo repetidas del Squad
+total_reps_squad = 0
+for p in nombres_papus:
+    total_reps_squad += int(df[df[p] > 1][p].sum() - len(df[df[p] > 1]))
 
 st.markdown(f"""
     <div class="megazord-card">
         <h2 style='margin:0;'>🤖 MEGAZORD (SQUAD)</h2>
         <p style='font-size:1.2em; margin:5px;'>Llevan el <b>{porcentaje_megazord:.1f}%</b> del Álbum Maestro</p>
+        <p style='font-size:1em; margin:2px;'>💰 Repetidas en Bodega Squad: <b>{total_reps_squad}</b></p>
     </div>
 """, unsafe_allow_html=True)
 st.progress(porcentaje_megazord / 100)
@@ -241,6 +249,7 @@ rank_data = []
 for p in nombres_papus:
     pegadas = len(df[df[p] > 0])
     porcentaje = (pegadas / total_total) * 100
+    # APARTADO NUEVO: Conteo individual de repetidas
     repetidas = df[df[p] > 1][p].sum() - len(df[df[p] > 1])
     
     for m, color in metas_colores.items():
@@ -263,7 +272,7 @@ for i, row in enumerate(df_rank.itertuples()):
                 <h3 style='margin:0; color:#007bff;'>#{i+1} {row.PAPU}</h3>
                 <div style='margin:10px 0;'>{mis_insig}</div>
                 <p style='margin:0; font-size:1.2em;'><b>{row.PROGRESO}</b></p>
-                <p style='margin:0; font-size:0.8em; color:#888;'>Pegadas: {row.PEGADAS} | Reps: {row.REPETIDAS}</p>
+                <p style='margin:0; font-size:0.8em; color:#888;'>Pegadas: {row.PEGADAS} | Repetidas: {row.REPETIDAS}</p>
             </div>
         """, unsafe_allow_html=True)
 
@@ -309,7 +318,7 @@ col_prio = f"PRIORIDAD_{usuario}"
 
 opciones = df['ESTAMPA'].tolist()
 
-# Buscador de texto libre
+# Buscador de texto libre en lugar del multiselect
 filtro_texto = st.text_input("🔍 Busca por código (Ej. MEX, ARG, FWC)...").upper()
 
 if "estampas_a_registrar" not in st.session_state: 
@@ -344,6 +353,7 @@ if filtro_texto:
     else:
         st.warning("No se encontró esa estampa. Revisa bien el código, pai.🤨")
 
+# Mostrar panel de control solo si ya se seleccionó al menos una estampa
 if st.session_state.estampas_a_registrar:
     st.write("### 📋 Panel de Control (Tu Lote Actual)")
     cols_control = st.columns(4)
@@ -357,6 +367,7 @@ if st.session_state.estampas_a_registrar:
                 cambios[idx] = st.number_input("Cantidad", min_value=1, value=cantidad, key=f"num_{est}")
 
     if st.button("💾 Al toque pa, ya los puedes guardar", type="primary", use_container_width=True):
+        # 🕵️‍♂️ BLOQUEO ANTI-DOBLE CLIC (RESTAURADO)
         transaccion_actual = {"user": usuario, "cambios": cambios.copy()}
         
         if st.session_state.ultima_transaccion == transaccion_actual:
@@ -371,6 +382,7 @@ if st.session_state.estampas_a_registrar:
                         if df.at[idx, usuario] == 0: nuevas += 1
                         df.at[idx, usuario] += suma
                 
+                # Asignación de insignias por eventos
                 if total_registradas > 15: st.session_state.insignias_eventos[usuario].add("Fayuquero")
                 if nuevas >= 4: st.session_state.insignias_eventos[usuario].add("Bendecido")
                 
