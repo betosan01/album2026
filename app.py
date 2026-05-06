@@ -174,8 +174,8 @@ def calcular_insignias(df_rank, df_completo, df_logs):
 
     # 3. 📦 Clonmadre
     for p in nombres_papus:
-        if df_completo[p].max() >= 5: # 1 pegada + 4 o más repetidas
-            insignias[p].append(("📦", "Clonmadre: Tiene 4 o más repetidas de una misma estampa."))
+        if df_completo[p].max() >= 5: # 1 pegada + 3 o más repetidas
+            insignias[p].append(("📦", "Clonmadre: Tiene 3 o más repetidas de una misma estampa."))
             
     # 4. 🤝 El Coyote
     tratos_count = {p: 0 for p in nombres_papus}
@@ -282,7 +282,7 @@ with st.sidebar:
         st.markdown("""
         👑 **Big Papu:** Líder del Ranking.  
         🚂 **Cruzazuleado:** Era el #1 y la pecheó.  
-        📦 **Clonmadre:** Tiene 4 o más repetidas de una misma.  
+        📦 **Clonmadre:** Tiene 3 o más repetidas de una misma.  
         🤝 **El Coyote:** El rey del trueque, más tratos activos.  
         🛍️ **El Fayuquero:** Registró más de 15 estampas de jalón.  
         🤲 **El Hambreado:** Cero repetidas, pero exige doradas.  
