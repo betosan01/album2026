@@ -394,7 +394,11 @@ if st.session_state.estampas_a_registrar:
                     registrar_log_remoto(f"{usuario} registró {len(cambios)} estampas")
                     st.session_state.ultima_transaccion = transaccion_actual
                     
-                    # MODIFICACIÓN: Borrado automático tras guardar
+                    # MODIFICACIÓN: Limpieza total de estados de widgets para que el toggle y el input se reinicien
+                    for est_key in list(st.session_state.estampas_a_registrar.keys()):
+                        if f"tg_{est_key}" in st.session_state: del st.session_state[f"tg_{est_key}"]
+                        if f"num_{est_key}" in st.session_state: del st.session_state[f"num_{est_key}"]
+                    
                     st.session_state.estampas_a_registrar = {} # Limpia el panel
                     st.session_state.search_input = "" # Limpia el buscador
                     st.rerun()
