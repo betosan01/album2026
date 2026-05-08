@@ -462,9 +462,26 @@ st.subheader("💱 Mercado Nigger & Tratos Pro🤯")
 t1, t2, t3 = st.tabs(["Disponibles🔁", "Un precio justo🦑", "Tríos🥵"])
 with t1:
     me_faltan = df[df[usuario] == 0]
-    for i, (_, row) in enumerate(me_faltan.iterrows()):
+    
+    # --- MODIFICACIÓN: Agrupación por sección (expander) ---
+    tratos_agrupados = {}
+    for _, row in me_faltan.iterrows():
         for o in nombres_papus:
-            if o != usuario and row[o] > 1: st.markdown(f"**{row['ESTAMPA']}** ➔ Ruégale a **{o}**")
+            if o != usuario and row[o] > 1:
+                # Extraemos el prefijo (ej. MEX, FWC)
+                seccion = row['ESTAMPA'].split(' ')[0] if ' ' in row['ESTAMPA'] else "Otras"
+                if seccion not in tratos_agrupados:
+                    tratos_agrupados[seccion] = []
+                tratos_agrupados[seccion].append(f"**{row['ESTAMPA']}** ➔ Ruégale a **{o}**")
+    
+    if tratos_agrupados:
+        for seccion in sorted(tratos_agrupados.keys()):
+            with st.expander(f"Sección {seccion}"):
+                for t in tratos_agrupados[seccion]:
+                    st.write(t)
+    else:
+        st.info("No hay tratos directos por ahora. 😿")
+
 with t2:
     for o in nombres_papus:
         if o != usuario:
