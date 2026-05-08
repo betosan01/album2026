@@ -202,26 +202,8 @@ def calcular_insignias(df_rank, df_completo, df_logs):
     if hambreados:
         el_hambreado = max(hambreados, key=lambda x: deseadas_counts[x])
         insignias[el_hambreado].append(("🤲", "El Hambreado: Cero repetidas, pero pide y pide doradas de a grapa."))
-        
-    # 8. 🐢 El Funcionario
-    hora_cdmx = datetime.utcnow() + timedelta(hours=-6)
-    if df_logs is not None and not df_logs.empty:
-        for p in nombres_papus:
-            logs_p = df_logs[df_logs['ACCION'].str.contains(p, na=False)]
-            if not logs_p.empty:
-                last_date_str = logs_p.iloc[0]['FECHA']
-                try:
-                    last_date = datetime.strptime(f"{last_date_str}/{hora_cdmx.year}", "%d/%m %H:%M/%Y")
-                    if (hora_cdmx - last_date).days >= 3:
-                        insignias[p].append(("🐢", "El Funcionario: Lleva más de 3 días sin chambear (registrar)."))
-                except: pass
-            else:
-                insignias[p].append(("🐢", "El Funcionario: Lleva más de 3 días sin chambear (registrar)."))
-    else:
-        for p in nombres_papus:
-            insignias[p].append(("🐢", "El Funcionario: Lleva más de 3 días sin chambear (registrar)."))
 
-    # 9. 🧂 El Salitre
+    # 8. 🧂 El Salitre
     salitre_ratio = {}
     for p in nombres_papus:
         pegadas = df_rank[df_rank['PAPU'] == p]['PEGADAS'].values[0]
@@ -235,7 +217,7 @@ def calcular_insignias(df_rank, df_completo, df_logs):
     if salitre_ratio[el_salitre] > 0.5: # Si su basura es más del 50% de sus pegadas
         insignias[el_salitre].append(("🧂", "El Salitre: Saladísimo. Pésimo ratio, pura repetida y poco avance."))
 
-    # 10. 🥵 El Ya Merito
+    # 9. 🥵 El Ya Merito
     for p in nombres_papus:
         prog = float(df_rank[df_rank['PAPU'] == p]['PROGRESO'].values[0].replace('%',''))
         if 90 <= prog < 100:
@@ -287,7 +269,6 @@ with st.sidebar:
         🛍️ **El Fayuquero:** Registró más de 15 estampas de jalón.  
         🤲 **El Hambreado:** Cero repetidas, pero exige doradas.  
         🎯 **El Bendecido:** Le salieron 4 o más nuevas en un registro.  
-        🐢 **El Funcionario:** Lleva más de 3 días sin registrar nada.  
         🧂 **El Salitre:** Saladísimo. Pura repetida y poco avance.  
         🥵 **El Ya Merito:** Sudando frío, superó el 90%.  
         """)
@@ -318,7 +299,6 @@ col_prio = f"PRIORIDAD_{usuario}"
 
 opciones = df['ESTAMPA'].tolist()
 
-# MODIFICACIÓN: Se añade key="search_input" para poder limpiarlo al guardar
 filtro_texto = st.text_input("🔍 Busca por código (Ej. MEX, ARG, FWC)...", key="search_input").upper()
 
 if "estampas_a_registrar" not in st.session_state: 
@@ -337,7 +317,8 @@ if filtro_texto:
             ya_la_tengo = df.at[idx, usuario] > 0
             
             with cols_botones[i % 6]:
-                is_checked = st.session_state.estampas_a_registrar.get(est, 0) > 0
+                # Sincronizamos el toggle con lo que haya en el lote actual
+                is_checked = est in st.session_state.estampas_a_registrar
                 
                 if ya_la_tengo:
                     label = f"⚠️ {est}"
@@ -367,7 +348,6 @@ if st.session_state.estampas_a_registrar:
                 cambios[idx] = st.number_input("Cantidad", min_value=1, value=cantidad, key=f"num_{est}")
 
     if st.button("💾 Al toque pa, ya los puedes guardar", type="primary", use_container_width=True):
-        # 🕵️‍♂️ BLOQUEO ANTI-DOBLE CLIC
         transaccion_actual = {"user": usuario, "cambios": cambios.copy()}
         
         if st.session_state.ultima_transaccion == transaccion_actual:
@@ -382,7 +362,6 @@ if st.session_state.estampas_a_registrar:
                         if df.at[idx, usuario] == 0: nuevas += 1
                         df.at[idx, usuario] += suma
                 
-                # Asignación de insignias por eventos
                 if total_registradas > 15: st.session_state.insignias_eventos[usuario].add("Fayuquero")
                 if nuevas >= 4: st.session_state.insignias_eventos[usuario].add("Bendecido")
                 
@@ -394,13 +373,17 @@ if st.session_state.estampas_a_registrar:
                     registrar_log_remoto(f"{usuario} registró {len(cambios)} estampas")
                     st.session_state.ultima_transaccion = transaccion_actual
                     
-                    # MODIFICACIÓN: Limpieza total de estados de widgets para que el toggle y el input se reinicien
+                    # --- CORRECCIÓN: LIMPIEZA FORZOSA DE WIDGETS ---
+                    # 1. Resetear el buscador
+                    st.session_state["search_input"] = ""
+                    # 2. Resetear cada toggle y input numérico que se usó
                     for est_key in list(st.session_state.estampas_a_registrar.keys()):
-                        if f"tg_{est_key}" in st.session_state: del st.session_state[f"tg_{est_key}"]
-                        if f"num_{est_key}" in st.session_state: del st.session_state[f"num_{est_key}"]
+                        st.session_state[f"tg_{est_key}"] = False
+                        if f"num_{est_key}" in st.session_state:
+                            st.session_state[f"num_{est_key}"] = 1
                     
-                    st.session_state.estampas_a_registrar = {} # Limpia el panel
-                    st.session_state.search_input = "" # Limpia el buscador
+                    # 3. Vaciar el lote y reiniciar la app
+                    st.session_state.estampas_a_registrar = {}
                     st.rerun()
                     
                 except Exception as e:
@@ -447,7 +430,7 @@ with st.expander("🗑️ Adios popó 💩 (Bajas externas)"):
                             st.session_state.df_maestro = df
                             registrar_log_remoto(f"⚠️ {usuario} dio bajas")
                             st.session_state.ultima_transaccion = transaccion_baja
-                            del st.session_state["multi_bajas"]
+                            st.session_state["multi_bajas"] = []
                             st.rerun()
                         except:
                             st.error("🚨 Error al conectar.")
