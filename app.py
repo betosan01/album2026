@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import streamlit.components.v1 as components
 from datetime import datetime, timedelta
+import time
 
 # Configuración de pantalla ancha
 st.set_page_config(page_title="Dashboard Mundial 2026 - Megazord Edition", layout="wide")
@@ -92,12 +93,6 @@ def cargar_datos_desde_google():
     except Exception as e:
         error_msg = str(e)
         st.error("🚨 ¡ALTO AHÍ! Falla en la Escena del Crimen (Error de Conexión) 🚨")
-        if "APIError" in error_msg or "quota" in error_msg.lower():
-            st.warning("⚠️ **Diagnóstico:** Saturaste a Google a peticiones. Espérate 30 segundos.")
-        elif "insufficient authentication" in error_msg.lower() or "permission" in error_msg.lower():
-            st.warning("⚠️ **Diagnóstico:** Revisa permisos del correo de servicio en el Sheet.")
-        else:
-            st.warning(f"⚠️ **Diagnóstico:** Error desconocido: `{error_msg}`")
         return False
 
 def registrar_log_remoto(accion):
@@ -106,15 +101,15 @@ def registrar_log_remoto(accion):
     nueva_fila = pd.DataFrame([{"FECHA": hora_cdmx.strftime("%d/%m %H:%M"), "ACCION": accion}])
     
     if st.session_state.df_logs is not None:
-        # Se mantienen los últimos 15 en la nube para historial, pero mostraremos solo 3
         st.session_state.df_logs = pd.concat([nueva_fila, st.session_state.df_logs]).head(15)
     else:
         st.session_state.df_logs = nueva_fila
     
     try:
+        # Silencioso para no saturar la API si falla el log
         conn.update(spreadsheet=url_del_sheet, worksheet="LOGS", data=st.session_state.df_logs)
     except:
-        st.error("No se pudo actualizar la bitácora en la nube.")
+        pass 
 
 # Cargar la primera vez
 if st.session_state.df_maestro is None:
@@ -326,8 +321,6 @@ with st.sidebar:
 st.divider()
 st.subheader("📖 Registro de Sobres")
 usuario = st.selectbox("¿Quién eres papu?🧐", nombres_papus)
-col_prio = f"PRIORIDAD_{usuario}"
-
 opciones = df['ESTAMPA'].tolist()
 
 # Buscador de texto libre en lugar del multiselect
@@ -403,12 +396,15 @@ if st.session_state.estampas_a_registrar:
                 try:
                     conn.update(spreadsheet=url_del_sheet, worksheet="SHEET1", data=df)
                     st.session_state.df_maestro = df
-                    registrar_log_remoto(f"{usuario} registró {len(cambios)} estampas")
                     st.session_state.ultima_transaccion = transaccion_actual
                     st.session_state.estampas_a_registrar = {}
+                    
+                    registrar_log_remoto(f"{usuario} registró {len(cambios)} estampas")
+                    st.success("✅ ¡Guardado al tiro, pa!")
+                    time.sleep(1)
                     st.rerun()
                 except Exception as e:
-                    st.error("🚨 Ocurrió un problema al guardar.")
+                    st.error("🚨 Ocurrió un problema al guardar el álbum maestro.")
 
 # --- INVENTARIO DE REPETIDAS ---
 st.divider()
@@ -425,9 +421,11 @@ if not df_reps.empty:
                 conn.update(spreadsheet=url_del_sheet, worksheet="SHEET1", data=df)
                 st.session_state.df_maestro = df
                 registrar_log_remoto(f"🕵️ {usuario} ajustó su inventario")
+                st.success("✅ Cantidades actualizadas correctamente.")
+                time.sleep(1)
                 st.rerun()
             except:
-                st.error("🚨 API saturada.")
+                st.error("🚨 Error al guardar los cambios en SHEET1.")
 else: st.info("Sin repetidas registradas. 🍀")
 
 # --- ADIOS POPÓ ---
@@ -449,12 +447,14 @@ with st.expander("🗑️ Adios popó 💩 (Bajas externas)"):
                         try:
                             conn.update(spreadsheet=url_del_sheet, worksheet="SHEET1", data=df)
                             st.session_state.df_maestro = df
-                            registrar_log_remoto(f"⚠️ {usuario} dio bajas")
                             st.session_state.ultima_transaccion = transaccion_baja
+                            registrar_log_remoto(f"⚠️ {usuario} dio bajas")
+                            st.success("✅ Bajas procesadas correctamente.")
+                            time.sleep(1)
                             del st.session_state["multi_bajas"]
                             st.rerun()
                         except:
-                            st.error("🚨 Error al conectar.")
+                            st.error("🚨 Error al conectar con el servidor.")
 
 # --- TRATOS Y MERCADO ---
 st.divider()
@@ -499,7 +499,7 @@ with t1:
         st.info("Nadie tiene nada de lo que te falta, búscate otros amigos. 😿")
 
 with t2:
-    # --- MODIFICACIÓN: TRATOS DIRECTOS CON BOTÓN ---
+    # TRATOS DIRECTOS CON BOTÓN
     for o in nombres_papus:
         if o != usuario:
             yo_tengo_el_no = df[(df[usuario] > 1) & (df[o] == 0)]['ESTAMPA'].tolist()
@@ -507,7 +507,6 @@ with t2:
             
             if yo_tengo_el_no and el_tiene_yo_no:
                 with st.container(border=True):
-                    # Solo proponemos el primer match para no vaciar el inventario de golpe
                     est_mia = yo_tengo_el_no[0]
                     est_suya = el_tiene_yo_no[0]
                     
@@ -516,7 +515,6 @@ with t2:
                     
                     if st.button(f"¡Cerrar Trato con {o}! 🤝", key=f"trato_{o}"):
                         with st.spinner("Firmando el contrato..."):
-                            # Actualizar DataFrame
                             idx_mia = df[df['ESTAMPA'] == est_mia].index[0]
                             idx_suya = df[df['ESTAMPA'] == est_suya].index[0]
                             
@@ -529,17 +527,18 @@ with t2:
                                 conn.update(spreadsheet=url_del_sheet, worksheet="SHEET1", data=df)
                                 st.session_state.df_maestro = df
                                 registrar_log_remoto(f"🤝 TRATO: {usuario} y {o} cambiaron {est_mia} x {est_suya}")
+                                st.success("🤝 ¡Trato exitoso, papu!")
+                                time.sleep(1)
                                 st.rerun()
                             except:
-                                st.error("🚨 Error al conectar con el Sheet.")
+                                st.error("🚨 No se pudo completar el trato en la nube.")
 
 with t3:
-    # --- MODIFICACIÓN: TRÍOS CON BOTÓN E INFO ---
+    # TRÍOS CON BOTÓN E INFO
     otros = [p for p in nombres_papus if p != usuario]
     encontrado = False
     for b in otros:
         for c in [p for p in otros if p != b]:
-            # A da a B, B da a C, C da a A
             a_a_b = df[(df[usuario] > 1) & (df[b] == 0)]['ESTAMPA'].tolist()
             b_a_c = df[(df[b] > 1) & (df[c] == 0)]['ESTAMPA'].tolist()
             c_a_a = df[(df[c] > 1) & (df[usuario] == 0)]['ESTAMPA'].tolist()
@@ -568,9 +567,11 @@ with t3:
                                 conn.update(spreadsheet=url_del_sheet, worksheet="SHEET1", data=df)
                                 st.session_state.df_maestro = df
                                 registrar_log_remoto(f"🔄 TRÍO CERRADO: {usuario}➔{b}➔{c}")
+                                st.success("🔄 ¡Trío completado con éxito!")
+                                time.sleep(1)
                                 st.rerun()
                             except:
-                                st.error("🚨 Falló la conexión.")
+                                st.error("🚨 Falló el guardado del trío.")
     if not encontrado:
         st.write("No hay carambolas de 3 bandas por ahora. 😶")
 
@@ -617,8 +618,10 @@ with cg1:
                 conn.update(spreadsheet=url_del_sheet, worksheet="SHEET1", data=df)
                 st.session_state.df_maestro = df
                 registrar_log_remoto(f"🤩 {usuario} marcó dorada: {p_add}")
+                st.success("✨ ¡Ahora es dorada!")
+                time.sleep(1)
                 st.rerun()
-            except: st.error("🚨 Falló al guardar.")
+            except: st.error("🚨 Falló al guardar en SHEET1.")
 with cg2:
     si_p = df[df[f"PRIORIDAD_{usuario}"] > 0]['ESTAMPA'].tolist()
     if si_p:
@@ -629,5 +632,7 @@ with cg2:
                 conn.update(spreadsheet=url_del_sheet, worksheet="SHEET1", data=df)
                 st.session_state.df_maestro = df
                 registrar_log_remoto(f"🗑️ {usuario} quitó dorada: {p_rem}")
+                st.success("✅ Ya no es dorada.")
+                time.sleep(1)
                 st.rerun()
-            except: st.error("🚨 Falló al guardar.")
+            except: st.error("🚨 Falló al quitar la dorada.")
