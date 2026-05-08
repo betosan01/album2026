@@ -461,26 +461,42 @@ st.divider()
 st.subheader("💱 Mercado Nigger & Tratos Pro🤯")
 t1, t2, t3 = st.tabs(["Disponibles🔁", "Un precio justo🦑", "Tríos🥵"])
 with t1:
+    # MODIFICACIÓN: Cuadrícula de disponibles similar al álbum
     me_faltan = df[df[usuario] == 0]
-    
-    # --- MODIFICACIÓN: Agrupación por sección (expander) ---
-    tratos_agrupados = {}
+    disponibles_mercado = []
     for _, row in me_faltan.iterrows():
-        for o in nombres_papus:
-            if o != usuario and row[o] > 1:
-                # Extraemos el prefijo (ej. MEX, FWC)
-                seccion = row['ESTAMPA'].split(' ')[0] if ' ' in row['ESTAMPA'] else "Otras"
-                if seccion not in tratos_agrupados:
-                    tratos_agrupados[seccion] = []
-                tratos_agrupados[seccion].append(f"**{row['ESTAMPA']}** ➔ Ruégale a **{o}**")
-    
-    if tratos_agrupados:
-        for seccion in sorted(tratos_agrupados.keys()):
-            with st.expander(f"Sección {seccion}"):
-                for t in tratos_agrupados[seccion]:
-                    st.write(t)
+        duenos = [o for o in nombres_papus if o != usuario and row[o] > 1]
+        if duenos:
+            disponibles_mercado.append({"ESTAMPA": row['ESTAMPA'], "DUENOS": duenos})
+
+    if disponibles_mercado:
+        if "p_m" not in st.session_state: st.session_state.p_m = 0
+        
+        # Controles de navegación
+        cm1, cm2, cm3 = st.columns([1,2,1])
+        with cm1:
+            if st.button("⬅️", key="prev_m") and st.session_state.p_m > 0:
+                st.session_state.p_m -= 1; st.rerun()
+        with cm2:
+            st.markdown(f"<p style='text-align:center;'>Pag. {st.session_state.p_m + 1}</p>", unsafe_allow_html=True)
+        with cm3:
+            if st.button("➡️", key="next_m") and st.session_state.p_m < (len(disponibles_mercado)-1)//18:
+                st.session_state.p_m += 1; st.rerun()
+        
+        # Renderizado de cuadrícula (18 por página)
+        pag_mercado = disponibles_mercado[st.session_state.p_m*18 : (st.session_state.p_m+1)*18]
+        cols_m = st.columns(6)
+        for i, item in enumerate(pag_mercado):
+            with cols_m[i % 6]:
+                duenos_str = ", ".join(item['DUENOS'])
+                st.markdown(f"""
+                    <div class='sticker-box st-blue' style='font-size:0.85em; padding:10px 2px; line-height:1.2;'>
+                        {item['ESTAMPA']}<br>
+                        <span style='font-size:0.7em; color:#e0e0e0; font-weight:normal;'>{duenos_str}</span>
+                    </div>
+                """, unsafe_allow_html=True)
     else:
-        st.info("No hay tratos directos por ahora. 😿")
+        st.info("Nadie tiene nada de lo que te falta, búscate otros amigos. 😿")
 
 with t2:
     for o in nombres_papus:
