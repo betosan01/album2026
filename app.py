@@ -197,13 +197,14 @@ def calcular_insignias(df_rank, df_completo, df_logs):
         if "Bendecido" in st.session_state.insignias_eventos[p]:
             insignias[p].append(("🎯", "El Bendecido: Puntería fina, le salieron 4 o más nuevas en un sobre."))
 
-    # 6. 🤲 El Hambreado (Blindado)
+    # 6. 🤲 El Hambreado
     deseadas_counts = {p: df_completo[f"PRIORIDAD_{p}"].sum() for p in nombres_papus}
     hambreados = []
     for p in nombres_papus:
         p_r = df_rank[df_rank['PAPU'] == p]
         if not p_r.empty and p_r['REPETIDAS'].values[0] == 0 and deseadas_counts[p] > 0:
             hambreados.append(p)
+    
     if hambreados:
         el_hambreado = max(hambreados, key=lambda x: deseadas_counts[x])
         insignias[el_hambreado].append(("🤲", "El Hambreado: Cero repetidas, pero pide y pide doradas de a grapa."))
@@ -226,7 +227,7 @@ def calcular_insignias(df_rank, df_completo, df_logs):
         for p in nombres_papus:
             insignias[p].append(("🐢", "El Funcionario: Lleva más de 3 días sin chambear (registrar)."))
 
-    # 9. 🧂 El Salitre (Blindado)
+    # 9. 🧂 El Salitre
     salitre_ratio = {}
     for p in nombres_papus:
         p_r = df_rank[df_rank['PAPU'] == p]
@@ -234,13 +235,14 @@ def calcular_insignias(df_rank, df_completo, df_logs):
             pegadas = p_r['PEGADAS'].values[0]
             reps = p_r['REPETIDAS'].values[0]
             prog = float(p_r['PROGRESO'].values[0].replace('%',''))
-            if prog < 50:
+            if prog < 50: # Solo aplica si vas a menos de la mitad
                 salitre_ratio[p] = reps / pegadas if pegadas > 0 else 0
             else:
                 salitre_ratio[p] = 0
+    
     if salitre_ratio and any(v > 0 for v in salitre_ratio.values()):
         el_salitre = max(salitre_ratio, key=salitre_ratio.get)
-        if salitre_ratio[el_salitre] > 0.5:
+        if salitre_ratio[el_salitre] > 0.5: # Si su basura es más del 50% de sus pegadas
             insignias[el_salitre].append(("🧂", "El Salitre: Saladísimo. Pésimo ratio, pura repetida y poco avance."))
 
     # 10. 🥵 El Ya Merito
