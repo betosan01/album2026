@@ -461,7 +461,7 @@ st.divider()
 st.subheader("💱 Mercado Nigger & Tratos Pro🤯")
 t1, t2, t3 = st.tabs(["Disponibles🔁", "Un precio justo🦑", "Tríos🥵"])
 with t1:
-    # MODIFICACIÓN: Cuadrícula de disponibles similar al álbum
+    # Cuadrícula de disponibles similar al álbum
     me_faltan = df[df[usuario] == 0]
     disponibles_mercado = []
     for _, row in me_faltan.iterrows():
@@ -499,17 +499,80 @@ with t1:
         st.info("Nadie tiene nada de lo que te falta, búscate otros amigos. 😿")
 
 with t2:
+    # --- MODIFICACIÓN: TRATOS DIRECTOS CON BOTÓN ---
     for o in nombres_papus:
         if o != usuario:
-            yo = df[(df[usuario] > 1) & (df[o] == 0)]['ESTAMPA'].tolist()
-            el = df[(df[o] > 1) & (df[usuario] == 0)]['ESTAMPA'].tolist()
-            if yo and el: st.success(f"🔥 **TRATO IDEAL CON {o}!** Tú: {yo[:2]} | Él: {el[:2]}")
+            yo_tengo_el_no = df[(df[usuario] > 1) & (df[o] == 0)]['ESTAMPA'].tolist()
+            el_tiene_yo_no = df[(df[o] > 1) & (df[usuario] == 0)]['ESTAMPA'].tolist()
+            
+            if yo_tengo_el_no and el_tiene_yo_no:
+                with st.container(border=True):
+                    # Solo proponemos el primer match para no vaciar el inventario de golpe
+                    est_mia = yo_tengo_el_no[0]
+                    est_suya = el_tiene_yo_no[0]
+                    
+                    st.success(f"🔥 **TRATO IDEAL CON {o}!**")
+                    st.write(f"Tú le das: **{est_mia}** ➔ Él te da: **{est_suya}**")
+                    
+                    if st.button(f"¡Cerrar Trato con {o}! 🤝", key=f"trato_{o}"):
+                        with st.spinner("Firmando el contrato..."):
+                            # Actualizar DataFrame
+                            idx_mia = df[df['ESTAMPA'] == est_mia].index[0]
+                            idx_suya = df[df['ESTAMPA'] == est_suya].index[0]
+                            
+                            df.at[idx_mia, usuario] -= 1
+                            df.at[idx_mia, o] += 1
+                            df.at[idx_suya, o] -= 1
+                            df.at[idx_suya, usuario] += 1
+                            
+                            try:
+                                conn.update(spreadsheet=url_del_sheet, worksheet="SHEET1", data=df)
+                                st.session_state.df_maestro = df
+                                registrar_log_remoto(f"🤝 TRATO: {usuario} y {o} cambiaron {est_mia} x {est_suya}")
+                                st.rerun()
+                            except:
+                                st.error("🚨 Error al conectar con el Sheet.")
+
 with t3:
+    # --- MODIFICACIÓN: TRÍOS CON BOTÓN E INFO ---
     otros = [p for p in nombres_papus if p != usuario]
+    encontrado = False
     for b in otros:
         for c in [p for p in otros if p != b]:
-            if not df[(df[usuario]>1)&(df[b]==0)].empty and not df[(df[b]>1)&(df[c]==0)].empty and not df[(df[c]>1)&(df[usuario]==0)].empty:
-                st.info(f"🔄 **TRÍO!** Tú ➔ {b} ➔ {c} ➔ Tú")
+            # A da a B, B da a C, C da a A
+            a_a_b = df[(df[usuario] > 1) & (df[b] == 0)]['ESTAMPA'].tolist()
+            b_a_c = df[(df[b] > 1) & (df[c] == 0)]['ESTAMPA'].tolist()
+            c_a_a = df[(df[c] > 1) & (df[usuario] == 0)]['ESTAMPA'].tolist()
+            
+            if a_a_b and b_a_c and c_a_a:
+                encontrado = True
+                with st.container(border=True):
+                    e1, e2, e3 = a_a_b[0], b_a_c[0], c_a_a[0]
+                    st.info(f"🔄 **TRÍO DETECTADO!**")
+                    st.write(f"1. Tú le das **{e1}** a **{b}**")
+                    st.write(f"2. **{b}** le da **{e2}** a **{c}**")
+                    st.write(f"3. **{c}** te da **{e3}** a ti")
+                    
+                    if st.button(f"¡Armar la machaca! 🔄 ({b} & {c})", key=f"trio_{b}_{c}"):
+                        with st.spinner("Haciendo el cambalache..."):
+                            df.at[df[df['ESTAMPA'] == e1].index[0], usuario] -= 1
+                            df.at[df[df['ESTAMPA'] == e1].index[0], b] += 1
+                            
+                            df.at[df[df['ESTAMPA'] == e2].index[0], b] -= 1
+                            df.at[df[df['ESTAMPA'] == e2].index[0], c] += 1
+                            
+                            df.at[df[df['ESTAMPA'] == e3].index[0], c] -= 1
+                            df.at[df[df['ESTAMPA'] == e3].index[0], usuario] += 1
+                            
+                            try:
+                                conn.update(spreadsheet=url_del_sheet, worksheet="SHEET1", data=df)
+                                st.session_state.df_maestro = df
+                                registrar_log_remoto(f"🔄 TRÍO CERRADO: {usuario}➔{b}➔{c}")
+                                st.rerun()
+                            except:
+                                st.error("🚨 Falló la conexión.")
+    if not encontrado:
+        st.write("No hay carambolas de 3 bandas por ahora. 😶")
 
 # --- ÁLBUM VIRTUAL ---
 st.divider()
