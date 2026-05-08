@@ -318,7 +318,6 @@ col_prio = f"PRIORIDAD_{usuario}"
 
 opciones = df['ESTAMPA'].tolist()
 
-# MODIFICACIÓN: Se añade key="search_input" para poder limpiarlo al guardar
 filtro_texto = st.text_input("🔍 Busca por código (Ej. MEX, ARG, FWC)...", key="search_input").upper()
 
 if "estampas_a_registrar" not in st.session_state: 
@@ -337,7 +336,7 @@ if filtro_texto:
             ya_la_tengo = df.at[idx, usuario] > 0
             
             with cols_botones[i % 6]:
-                is_checked = st.session_state.estampas_a_registrar.get(est, 0) > 0
+                is_checked = est in st.session_state.estampas_a_registrar
                 
                 if ya_la_tengo:
                     label = f"⚠️ {est}"
@@ -367,7 +366,6 @@ if st.session_state.estampas_a_registrar:
                 cambios[idx] = st.number_input("Cantidad", min_value=1, value=cantidad, key=f"num_{est}")
 
     if st.button("💾 Al toque pa, ya los puedes guardar", type="primary", use_container_width=True):
-        # 🕵️‍♂️ BLOQUEO ANTI-DOBLE CLIC
         transaccion_actual = {"user": usuario, "cambios": cambios.copy()}
         
         if st.session_state.ultima_transaccion == transaccion_actual:
@@ -382,29 +380,41 @@ if st.session_state.estampas_a_registrar:
                         if df.at[idx, usuario] == 0: nuevas += 1
                         df.at[idx, usuario] += suma
                 
-                # Asignación de insignias por eventos
                 if total_registradas > 15: st.session_state.insignias_eventos[usuario].add("Fayuquero")
                 if nuevas >= 4: st.session_state.insignias_eventos[usuario].add("Bendecido")
                 
                 st.session_state.racha_salada[usuario] = 0 if nuevas > 0 else st.session_state.racha_salada[usuario] + 1
                 
                 try:
+                    # 1. Guardar base de datos principal
                     conn.update(spreadsheet=url_del_sheet, worksheet="SHEET1", data=df)
                     st.session_state.df_maestro = df
-                    registrar_log_remoto(f"{usuario} registró {len(cambios)} estampas")
                     st.session_state.ultima_transaccion = transaccion_actual
                     
-                    # MODIFICACIÓN: Limpieza total de estados de widgets para que el toggle y el input se reinicien
-                    for est_key in list(st.session_state.estampas_a_registrar.keys()):
-                        if f"tg_{est_key}" in st.session_state: del st.session_state[f"tg_{est_key}"]
-                        if f"num_{est_key}" in st.session_state: del st.session_state[f"num_{est_key}"]
+                    # 2. Intentar registrar el log (Si falla por quota, que no rompa el resto)
+                    try:
+                        registrar_log_remoto(f"{usuario} registró {len(cambios)} estampas")
+                    except:
+                        pass 
+
+                    # 3. --- LIMPIEZA TOTAL ---
+                    # Limpiamos el buscador
+                    st.session_state["search_input"] = ""
                     
-                    st.session_state.estampas_a_registrar = {} # Limpia el panel
-                    st.session_state.search_input = "" # Limpia el buscador
+                    # Matamos las llaves de los toggles y números del lote actual
+                    for est_key in list(st.session_state.estampas_a_registrar.keys()):
+                        if f"tg_{est_key}" in st.session_state:
+                            del st.session_state[f"tg_{est_key}"]
+                        if f"num_{est_key}" in st.session_state:
+                            del st.session_state[f"num_{est_key}"]
+
+                    # Vaciamos el lote y recargamos
+                    st.session_state.estampas_a_registrar = {}
                     st.rerun()
                     
                 except Exception as e:
-                    st.error("🚨 Ocurrió un problema al guardar.")
+                    # Este solo sale si falla el guardado principal de SHEET1
+                    st.error(f"🚨 Error real al conectar con la base: {e}")
 
 # --- INVENTARIO DE REPETIDAS ---
 st.divider()
@@ -447,7 +457,7 @@ with st.expander("🗑️ Adios popó 💩 (Bajas externas)"):
                             st.session_state.df_maestro = df
                             registrar_log_remoto(f"⚠️ {usuario} dio bajas")
                             st.session_state.ultima_transaccion = transaccion_baja
-                            del st.session_state["multi_bajas"]
+                            st.session_state["multi_bajas"] = []
                             st.rerun()
                         except:
                             st.error("🚨 Error al conectar.")
