@@ -135,7 +135,7 @@ total_total = len(df)
 estampas_squad = df[nombres_papus].any(axis=1).sum()
 porcentaje_megazord = (estampas_squad / total_total) * 100
 
-# APARTADO NUEVO: Cálculo repetidas del Squad
+# APARTADO: Cálculo repetidas del Squad
 total_reps_squad = 0
 for p in nombres_papus:
     total_reps_squad += int(df[df[p] > 1][p].sum() - len(df[df[p] > 1]))
@@ -249,7 +249,7 @@ rank_data = []
 for p in nombres_papus:
     pegadas = len(df[df[p] > 0])
     porcentaje = (pegadas / total_total) * 100
-    # APARTADO NUEVO: Conteo individual de repetidas
+    # Conteo individual de repetidas
     repetidas = df[df[p] > 1][p].sum() - len(df[df[p] > 1])
     
     for m, color in metas_colores.items():
@@ -310,7 +310,7 @@ with st.sidebar:
             st.markdown(f"<div class='shame-card'>⚠️ <b>{p}</b> lleva {racha} registros de puras repetidas. 🤡</div>", unsafe_allow_html=True)
     if not salado: st.write("Todos traen suerte... por ahora.😶‍🌫️")
 
-# --- REGISTRO & INVENTARIO (VERSIÓN CUADRÍCULA OPTIMIZADA) ---
+# --- REGISTRO & INVENTARIO (CUADRÍCULA) ---
 st.divider()
 st.subheader("📖 Registro de Sobres")
 usuario = st.selectbox("¿Quién eres papu?🧐", nombres_papus)
@@ -318,8 +318,8 @@ col_prio = f"PRIORIDAD_{usuario}"
 
 opciones = df['ESTAMPA'].tolist()
 
-# Buscador de texto libre en lugar del multiselect
-filtro_texto = st.text_input("🔍 Busca por código (Ej. MEX, ARG, FWC)...").upper()
+# MODIFICACIÓN: Se añade key="search_input" para poder limpiarlo al guardar
+filtro_texto = st.text_input("🔍 Busca por código (Ej. MEX, ARG, FWC)...", key="search_input").upper()
 
 if "estampas_a_registrar" not in st.session_state: 
     st.session_state.estampas_a_registrar = {}
@@ -367,7 +367,7 @@ if st.session_state.estampas_a_registrar:
                 cambios[idx] = st.number_input("Cantidad", min_value=1, value=cantidad, key=f"num_{est}")
 
     if st.button("💾 Al toque pa, ya los puedes guardar", type="primary", use_container_width=True):
-        # 🕵️‍♂️ BLOQUEO ANTI-DOBLE CLIC (RESTAURADO)
+        # 🕵️‍♂️ BLOQUEO ANTI-DOBLE CLIC
         transaccion_actual = {"user": usuario, "cambios": cambios.copy()}
         
         if st.session_state.ultima_transaccion == transaccion_actual:
@@ -393,8 +393,12 @@ if st.session_state.estampas_a_registrar:
                     st.session_state.df_maestro = df
                     registrar_log_remoto(f"{usuario} registró {len(cambios)} estampas")
                     st.session_state.ultima_transaccion = transaccion_actual
-                    st.session_state.estampas_a_registrar = {}
+                    
+                    # MODIFICACIÓN: Borrado automático tras guardar
+                    st.session_state.estampas_a_registrar = {} # Limpia el panel
+                    st.session_state.search_input = "" # Limpia el buscador
                     st.rerun()
+                    
                 except Exception as e:
                     st.error("🚨 Ocurrió un problema al guardar.")
 
@@ -490,8 +494,7 @@ chunk = df_v.iloc[st.session_state.p_a*30 : (st.session_state.p_a+1)*30]
 cols_a = st.columns(6)
 for i, (_, r) in enumerate(chunk.iterrows()):
     act, prio = r[usuario], r[f"PRIORIDAD_{usuario}"]
-    otros_f = [p for p in nombres_papus if p != usuario if r[p] == 0]
-    css = "st-blue" if act > 1 and otros_f else "st-green" if act >= 1 else "st-gold" if prio > 0 else "st-gray"
+    css = "st-blue" if act > 1 else "st-green" if act >= 1 else "st-gold" if prio > 0 else "st-gray"
     with cols_a[i % 6]: st.markdown(f"<div class='sticker-box {css}'>{r['ESTAMPA']}</div>", unsafe_allow_html=True)
 st.markdown("</div>", unsafe_allow_html=True)
 
