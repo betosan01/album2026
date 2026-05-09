@@ -340,6 +340,7 @@ if filtro_texto:
             ya_la_tengo = df.at[idx, usuario] > 0
             
             with cols_botones[i % 6]:
+                # Recuperar estado previo del diccionario
                 is_checked = st.session_state.estampas_a_registrar.get(est, 0) > 0
                 
                 if ya_la_tengo:
@@ -347,6 +348,7 @@ if filtro_texto:
                 else:
                     label = f"✅ {est}"
                 
+                # Widget toggle
                 seleccion = st.toggle(label, value=is_checked, key=f"tg_{est}")
                 
                 if seleccion:
@@ -362,10 +364,15 @@ if st.session_state.estampas_a_registrar:
     with col_t:
         st.write("### 📋 Panel de Control (Tu Lote Actual)")
     with col_b:
-        if st.button("🗑️ Limpiar Selecciones", use_container_width=True, type="secondary"):
+        # Función para resetear widgets sin tocar el Sheet
+        if st.button("🗑️ Limpiar Selecciones", use_container_width=True):
             st.session_state.estampas_a_registrar = {}
+            # Borramos llaves de widgets para forzar el apagado visual
+            for k in list(st.session_state.keys()):
+                if k.startswith("tg_") or k.startswith("num_"):
+                    del st.session_state[k]
             st.rerun()
-            
+
     cols_control = st.columns(4)
     cambios = {}
     
@@ -410,6 +417,10 @@ if st.session_state.estampas_a_registrar:
                 st.session_state.df_maestro = df
                 st.session_state.ultima_transaccion = transaccion_actual
                 st.session_state.estampas_a_registrar = {}
+                # Limpiar widgets tras guardado exitoso
+                for k in list(st.session_state.keys()):
+                    if k.startswith("tg_") or k.startswith("num_"):
+                        del st.session_state[k]
                 st.success("✅ ¡Guardado al tiro, pa!")
                 time.sleep(1)
                 st.rerun()
