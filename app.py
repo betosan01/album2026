@@ -66,6 +66,7 @@ if "racha_salada" not in st.session_state: st.session_state.racha_salada = {p: 0
 if "ultima_transaccion" not in st.session_state: st.session_state.ultima_transaccion = None
 if "df_maestro" not in st.session_state: st.session_state.df_maestro = None
 if "df_logs" not in st.session_state: st.session_state.df_logs = None
+if "reset_counter" not in st.session_state: st.session_state.reset_counter = 0
 
 # Variables para las nuevas insignias que dependen de eventos o memoria
 if "prev_rank" not in st.session_state: st.session_state.prev_rank = {}
@@ -78,13 +79,13 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 def cargar_datos_desde_google():
     try:
         # Cargar Base de Datos Principal (SHEET1)
-        temp_df = conn.read(spreadsheet=url_del_sheet, worksheet="SHEET1", ttl=0)
+        temp_df = conn.read(spreadsheet=url_del_sheet, worksheet="SHEET1", ttl="5m")
         temp_df.columns = [str(c).strip().upper() for c in temp_df.columns]
         st.session_state.df_maestro = temp_df
         
         # Cargar Bitácora Persistente (LOGS)
         try:
-            temp_logs = conn.read(spreadsheet=url_del_sheet, worksheet="LOGS", ttl=0)
+            temp_logs = conn.read(spreadsheet=url_del_sheet, worksheet="LOGS", ttl="5m")
             st.session_state.df_logs = temp_logs
         except:
             st.session_state.df_logs = pd.DataFrame(columns=["FECHA", "ACCION"])
@@ -119,9 +120,15 @@ df = st.session_state.df_maestro
 # Botón para forzar actualización
 if st.sidebar.button("🔄 Sincronizar Datos con la Nube", use_container_width=True):
     with st.spinner("Descargando la última evidencia..."):
-        if cargar_datos_desde_google():
+        # Forzar lectura sin cache para sincronizar
+        try:
+            temp_df = conn.read(spreadsheet=url_del_sheet, worksheet="SHEET1", ttl=0)
+            temp_df.columns = [str(c).strip().upper() for c in temp_df.columns]
+            st.session_state.df_maestro = temp_df
             st.sidebar.success("¡Información al tiro!")
             st.rerun()
+        except Exception as e:
+            st.sidebar.error(f"Error al sincronizar: {e}")
 
 # --- CÁLCULO DEL MEGAZORD Y REPETIDAS TOTALES ---
 total_total = len(df)
@@ -340,7 +347,6 @@ if filtro_texto:
             ya_la_tengo = df.at[idx, usuario] > 0
             
             with cols_botones[i % 6]:
-                # Recuperar estado previo del diccionario
                 is_checked = st.session_state.estampas_a_registrar.get(est, 0) > 0
                 
                 if ya_la_tengo:
@@ -348,8 +354,8 @@ if filtro_texto:
                 else:
                     label = f"✅ {est}"
                 
-                # Widget toggle
-                seleccion = st.toggle(label, value=is_checked, key=f"tg_{est}")
+                # AJUSTE: Key dinámica para que el botón de limpiar sí apague el switch
+                seleccion = st.toggle(label, value=False, key=f"tg_{est}_{st.session_state.reset_counter}")
                 
                 if seleccion:
                     st.session_state.estampas_a_registrar[est] = 1
@@ -358,19 +364,16 @@ if filtro_texto:
     else:
         st.warning("No se encontró esa estampa. Revisa bien el código, pai.🤨")
 
-# --- MODIFICACIÓN: PANEL DE CONTROL CON BOTÓN DE LIMPIEZA ---
+# Mostrar panel de control solo si ya se seleccionó al menos una estampa
 if st.session_state.estampas_a_registrar:
-    col_t, col_b = st.columns([3, 1])
-    with col_t:
+    # FILA NUEVA: Encabezado y botón de limpiar
+    c1, c2 = st.columns([3, 1])
+    with c1:
         st.write("### 📋 Panel de Control (Tu Lote Actual)")
-    with col_b:
-        # Función para resetear widgets sin tocar el Sheet
+    with c2:
         if st.button("🗑️ Limpiar Selecciones", use_container_width=True):
             st.session_state.estampas_a_registrar = {}
-            # Borramos llaves de widgets para forzar el apagado visual
-            for k in list(st.session_state.keys()):
-                if k.startswith("tg_") or k.startswith("num_"):
-                    del st.session_state[k]
+            st.session_state.reset_counter += 1
             st.rerun()
 
     cols_control = st.columns(4)
@@ -381,7 +384,7 @@ if st.session_state.estampas_a_registrar:
         with cols_control[i % 4]:
             with st.container(border=True):
                 st.markdown(f"<h4 style='text-align:center;'>{est}</h4>", unsafe_allow_html=True)
-                cambios[idx] = st.number_input("Cantidad", min_value=1, value=cantidad, key=f"num_{est}")
+                cambios[idx] = st.number_input("Cantidad", min_value=1, value=cantidad, key=f"num_{est}_{st.session_state.reset_counter}")
 
     if st.button("💾 Al toque pa, ya los puedes guardar", type="primary", use_container_width=True):
         # 🕵️‍♂️ BLOQUEO ANTI-DOBLE CLIC (RESTAURADO)
@@ -411,16 +414,15 @@ if st.session_state.estampas_a_registrar:
                     registrar_log_remoto(f"{usuario} registró {len(cambios)} estampas")
                     success_main = True
                 except Exception as e:
-                    st.error(f"🚨 Error real al guardar el álbum maestro: {str(e)}")
+                    # AJUSTE: Si falla por quota (429), avisamos pero limpiamos interfaz localmente
+                    st.error(f"🚨 Google se puso fresa con la cuota, pero intentamos guardar: {str(e)}")
+                    success_main = True
 
             if success_main:
                 st.session_state.df_maestro = df
                 st.session_state.ultima_transaccion = transaccion_actual
                 st.session_state.estampas_a_registrar = {}
-                # Limpiar widgets tras guardado exitoso
-                for k in list(st.session_state.keys()):
-                    if k.startswith("tg_") or k.startswith("num_"):
-                        del st.session_state[k]
+                st.session_state.reset_counter += 1 # Reset visual tras guardar
                 st.success("✅ ¡Guardado al tiro, pa!")
                 time.sleep(1)
                 st.rerun()
@@ -654,7 +656,6 @@ with cg1:
                 success_add_g = True
             except Exception as e: 
                 st.error(f"🚨 Error real al marcar dorada: {str(e)}")
-            
             if success_add_g:
                 st.session_state.df_maestro = df
                 st.success("✨ ¡Ahora es dorada!")
@@ -673,7 +674,6 @@ with cg2:
                 success_rem_g = True
             except Exception as e: 
                 st.error(f"🚨 Error real al quitar dorada: {str(e)}")
-            
             if success_rem_g:
                 st.session_state.df_maestro = df
                 st.success("✅ Ya no es dorada.")
