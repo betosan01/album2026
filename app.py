@@ -356,9 +356,16 @@ if filtro_texto:
     else:
         st.warning("No se encontró esa estampa. Revisa bien el código, pai.🤨")
 
-# Mostrar panel de control solo si ya se seleccionó al menos una estampa
+# --- MODIFICACIÓN: PANEL DE CONTROL CON BOTÓN DE LIMPIEZA ---
 if st.session_state.estampas_a_registrar:
-    st.write("### 📋 Panel de Control (Tu Lote Actual)")
+    col_t, col_b = st.columns([3, 1])
+    with col_t:
+        st.write("### 📋 Panel de Control (Tu Lote Actual)")
+    with col_b:
+        if st.button("🗑️ Limpiar Selecciones", use_container_width=True, type="secondary"):
+            st.session_state.estampas_a_registrar = {}
+            st.rerun()
+            
     cols_control = st.columns(4)
     cambios = {}
     
