@@ -47,8 +47,10 @@ def lanzar_fuegos(nombre, meta, color_hex):
             var end = Date.now() + (4 * 1000);
             var colors = {colors};
             (function frame() {{
-              confetti({{ particleCount: 7, angle: 60, spread: 55, origin: {{ x: 0 }}, colors: colors }});
-              confetti({{ particleCount: 7, angle: 120, spread: 55, origin: {{ x: 1 }}, colors: colors }});
+              // Disparos tipo cuete desde los lados
+              confetti({{ particleCount: 10, angle: 60, spread: 55, origin: {{ x: 0, y: 0.6 }}, colors: colors }});
+              confetti({{ particleCount: 10, angle: 120, spread: 55, origin: {{ x: 1, y: 0.6 }}, colors: colors }});
+              
               if (Date.now() < end) {{ requestAnimationFrame(frame); }}
             }}());
         </script>
@@ -264,11 +266,18 @@ for p in nombres_papus:
     # APARTADO NUEVO: Conteo individual de repetidas
     repetidas = df[df[p] > 1][p].sum() - len(df[df[p] > 1])
     
-    for m, color in metas_colores.items():
-        if porcentaje >= m and m not in st.session_state.metas_alcanzadas[p]:
-            lanzar_fuegos(p, m, color if m < 100 else "#ffffff")
-            st.session_state.metas_alcanzadas[p].append(m)
-            registrar_log_remoto(f"🔥 {p} SUBIÓ DE NIVEL: {m}%")
+    # MODIFICACIÓN: Mostrar solo el hito más alto recién alcanzado
+    hitos_posibles = [m for m in metas_colores.keys() if porcentaje >= m]
+    if hitos_posibles:
+        max_hito = max(hitos_posibles)
+        if max_hito not in st.session_state.metas_alcanzadas[p]:
+            color = metas_colores[max_hito] if max_hito < 100 else "#ffffff"
+            lanzar_fuegos(p, max_hito, color)
+            # Marcamos este y todos los anteriores como alcanzados para no repetir banners viejos
+            for h in hitos_posibles:
+                if h not in st.session_state.metas_alcanzadas[p]:
+                    st.session_state.metas_alcanzadas[p].append(h)
+            registrar_log_remoto(f"🔥 {p} SUBIÓ DE NIVEL: {max_hito}%")
 
     rank_data.append({"PAPU": p, "PROGRESO": f"{porcentaje:.1f}%", "PEGADAS": pegadas, "REPETIDAS": int(repetidas), "PUNTOS": (pegadas * 2) + int(repetidas)})
 
